@@ -2,6 +2,9 @@ import requests
 from dotenv import load_dotenv
 import os
 from pymongo import MongoClient
+from requests.exceptions import RequestException
+import json
+import sys
 
 # Load environment variables
 load_dotenv()
@@ -32,7 +35,6 @@ def fetch_all_records():
 
 def delete_old_records(existing_cars, latest_cars):
     """Delete records from MongoDB that are not found in the latest search."""
-    existing_stock_nums = [car['stock_num'] for car in existing_cars]
     latest_stock_nums = [car['stock_num'] for car in latest_cars]
 
     for car in existing_cars:
@@ -66,7 +68,7 @@ payload = {
     "makes-sorting-order": "0",
     "models-sorting-order": "0",
     "action": "sif_search_products",
-    "sif_verify_request": "c41145a606",
+    "sif_verify_request": "9f16501e14",
     "sorting[key]": "iyear",
     "sorting[state]": "0",
     "sorting[type]": "int"
@@ -77,8 +79,26 @@ headers = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
 }
 
-response = requests.post(url, headers=headers, data=payload)
-cars = response.json()['products']
+cars = []
+
+try:
+    response = requests.post(url, headers=headers, data=payload)
+    response.raise_for_status()  # Check for HTTP errors
+
+    try:
+        data = response.json()  # Attempt to parse JSON response
+        if 'products' in data:
+            cars = data['products']
+        else:
+            print("Error: 'products' key not found in the response")
+            sys.exit(1)
+    except json.JSONDecodeError:
+        print("Error: Failed to parse JSON response")
+        sys.exit(1)
+
+except RequestException as e:
+    print(f"Error: Request failed - {e}")
+    sys.exit(1)
 
 # List to store cars of interest
 cars_of_interest = []
