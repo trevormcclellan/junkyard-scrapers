@@ -1,0 +1,7 @@
+# Schedule scraper1 to run every hour
+0 * * * * root /usr/bin/python3 /app/tearapart/main.py >> /var/log/cron.log 2>&1
+
+# Schedule scraper2 to run every hour
+0 * * * * root /usr/bin/python3 /app/utpap/main.py >> /var/log/cron.log 2>&1
+
+# Ensure cron logs are written to stdout
