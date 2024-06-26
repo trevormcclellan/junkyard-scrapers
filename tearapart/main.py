@@ -2,8 +2,9 @@ import requests
 from dotenv import load_dotenv
 import os
 from pymongo import MongoClient
-from requests.exceptions import RequestException
-import json
+from bs4 import BeautifulSoup
+from datetime import datetime
+import re
 import sys
 
 # Load environment variables
@@ -25,9 +26,25 @@ home_assistant_webhook_url = f"https://ha.tsmcclel.cfd/api/webhook/{os.getenv('H
 def send_to_home_assistant(data):
     response = requests.post(home_assistant_webhook_url, json=data)
     if response.status_code == 200:
-        print("Data sent to Home Assistant successfully.")
+        print(f"{str(datetime.now())} - Data sent to Home Assistant successfully.")
     else:
-        print(f"Failed to send data to Home Assistant: {response.status_code}")
+        print(f"{str(datetime.now())} - Failed to send data to Home Assistant: {response.status_code}")
+
+def fetch_nonce():
+    url = "https://tearapart.com/used-auto-parts/inventory/"
+    headers = {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+    }
+
+    response = requests.get(url, headers=headers)
+    html_content = response.text
+
+    soup = BeautifulSoup(html_content, 'html.parser')
+    script_tag = soup.find('script', {'id': 'sif_plugin js frontend main-js-extra'})
+    script_content = script_tag.string
+
+    nonce_match = re.search(r'sif_ajax_nonce":"(\w+)"', script_content)
+    return nonce_match.group(1) if nonce_match else None
 
 def fetch_all_records():
     """Fetch all records from MongoDB collection."""
@@ -40,7 +57,7 @@ def delete_old_records(existing_cars, latest_cars):
     for car in existing_cars:
         if car['stock_num'] not in latest_stock_nums:
             collection.delete_one({"stock_num": car['stock_num']})
-            print(f"Deleted record with stock_num: {car['stock_num']}")
+            print(f"{str(datetime.now())} - Deleted record with stock_num: {car['stock_num']}")
 
 def fetch_vehicle_details(vin):
     """Fetch vehicle details from NHTSA API using VIN."""
@@ -52,10 +69,10 @@ def fetch_vehicle_details(vin):
             series = data['Results'][0]['Series']
             return series
         else:
-            print(f"Failed to fetch vehicle details for VIN {vin}.")
+            print(f"{str(datetime.now())} - Failed to fetch vehicle details for VIN {vin}.")
             return None
     except Exception as e:
-        print(f"Error fetching vehicle details for VIN {vin}: {str(e)}")
+        print(f"{str(datetime.now())} - Error fetching vehicle details for VIN {vin}: {str(e)}")
         return None
 
 # Tear A Part API endpoint
@@ -68,7 +85,7 @@ payload = {
     "makes-sorting-order": "0",
     "models-sorting-order": "0",
     "action": "sif_search_products",
-    "sif_verify_request": "9f16501e14",
+    "sif_verify_request": fetch_nonce(),
     "sorting[key]": "iyear",
     "sorting[state]": "0",
     "sorting[type]": "int"
@@ -89,15 +106,16 @@ try:
         data = response.json()  # Attempt to parse JSON response
         if 'products' in data:
             cars = data['products']
+            print(f"{str(datetime.now())} - Succesfully fetched {len(cars)} cars from Tear-A-Part.")
         else:
             print("Error: 'products' key not found in the response")
             sys.exit(1)
-    except json.JSONDecodeError:
+    except Exception as e:
         print("Error: Failed to parse JSON response")
         sys.exit(1)
 
-except RequestException as e:
-    print(f"Error: Request failed - {e}")
+except Exception as e:
+    print(f"{str(datetime.now())} - Error: Request failed - {e}")
     sys.exit(1)
 
 # List to store cars of interest
@@ -146,7 +164,7 @@ for car in cars:
 
     except ValueError:
         # Handle cases where conversion to int fails
-        print(f"Skipping row with invalid data: {car}")
+        print(f"{str(datetime.now())} - Skipping row with invalid data: {car}")
 
 # Fetch all records from MongoDB
 existing_cars = fetch_all_records()

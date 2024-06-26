@@ -1,8 +1,9 @@
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-import os
 from pymongo import MongoClient
+from datetime import datetime
+import os
 
 # Load environment variables
 load_dotenv()
@@ -23,9 +24,9 @@ home_assistant_webhook_url = f"https://ha.tsmcclel.cfd/api/webhook/{os.getenv('H
 def send_to_home_assistant(data):
     response = requests.post(home_assistant_webhook_url, json=data)
     if response.status_code == 200:
-        print("Data sent to Home Assistant successfully.")
+        print(f"{str(datetime.now())} - Data sent to Home Assistant successfully.")
     else:
-        print(f"Failed to send data to Home Assistant: {response.status_code}")
+        print(f"{str(datetime.now())} - Failed to send data to Home Assistant: {response.status_code}")
 
 def fetch_all_records():
     """Fetch all records from MongoDB collection."""
@@ -38,7 +39,7 @@ def delete_old_records(existing_cars, latest_cars):
     for car in existing_cars:
         if car['stock_num'] not in latest_stock_nums:
             collection.delete_one({"stock_num": car['stock_num']})
-            print(f"Deleted record with stock_num: {car['stock_num']}")
+            print(f"{str(datetime.now())} - Deleted record with stock_num: {car['stock_num']}")
 
 url = "https://utpap.com/wp-content/themes/enterprise/inventory_search_files/search-inventory_orem.php?make=MERCEDES-BENZ&model="
 
@@ -62,6 +63,7 @@ cars_of_interest = []
 if table:
     # Find all rows in the table
     rows = table.find_all('tr')
+    print(f"{str(datetime.now())} - Successully fetched {len(rows)} cars from UTPAP.")
     
     for row in rows:
         # Get all the columns in the row
@@ -97,9 +99,9 @@ if table:
                         collection.insert_one(car_data)
             except ValueError:
                 # Handle the case where conversion to int fails (e.g., year is not a number)
-                print(f"Skipping row with invalid data: {col_data}")
+                print(f"{str(datetime.now())} - Skipping row with invalid data: {col_data}")
 else:
-    print("Table not found.")
+    print(f"{str(datetime.now())} - Table not found.")
 
 # Fetch all records from MongoDB
 existing_cars = fetch_all_records()
