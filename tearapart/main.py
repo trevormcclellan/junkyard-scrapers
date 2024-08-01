@@ -78,8 +78,11 @@ def fetch_vehicle_details(vin):
         update_health_status("unhealthy")
         return None
 
-def update_health_status(status):
-    with open("/tmp/tearapart/health_status.txt", "w") as file:
+def update_health_status(status, script_name):
+    directory = "/tmp/tearapart"
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    with open(f"{directory}/health_status.txt", "w") as file:
         file.write(status)
 
 try:

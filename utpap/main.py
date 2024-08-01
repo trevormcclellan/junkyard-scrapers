@@ -42,8 +42,11 @@ def delete_old_records(existing_cars, latest_cars):
             collection.delete_one({"stock_num": car['stock_num']})
             print(f"{str(datetime.now())} - Deleted record with stock_num: {car['stock_num']}")
 
-def update_health_status(status):
-    with open("/tmp/UTPAP/health_status.txt", "w") as file:
+def update_health_status(status, script_name):
+    directory = "/tmp/UTPAP"
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    with open(f"{directory}/health_status.txt", "w") as file:
         file.write(status)
 
 try:
