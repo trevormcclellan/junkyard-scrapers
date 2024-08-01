@@ -27,6 +27,7 @@ def send_to_home_assistant(data):
         print(f"{str(datetime.now())} - Data sent to Home Assistant successfully.")
     else:
         print(f"{str(datetime.now())} - Failed to send data to Home Assistant: {response.status_code}")
+        update_health_status("unhealthy")
 
 def fetch_all_records():
     """Fetch all records from MongoDB collection."""
@@ -41,79 +42,93 @@ def delete_old_records(existing_cars, latest_cars):
             collection.delete_one({"stock_num": car['stock_num']})
             print(f"{str(datetime.now())} - Deleted record with stock_num: {car['stock_num']}")
 
-url = "https://utpap.com/orem-inventory"
+def update_health_status(status):
+    with open("/tmp/UTPAP/health_status.txt", "w") as file:
+        file.write(status)
 
-payload = {}
-headers = {
-    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-    'accept-language': 'en-US,en;q=0.9',
-    'sec-ch-ua': '"Not)A;Brand";v="99", "Google Chrome";v="127", "Chromium";v="127"',
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Windows"',
-    'sec-fetch-dest': 'document',
-    'sec-fetch-mode': 'navigate',
-    'sec-fetch-site': 'same-origin',
-    'sec-fetch-user': '?1',
-    'upgrade-insecure-requests': '1',
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
-}
+try:
+    url = "https://utpap.com/orem-inventory"
+    payload = {}
+    headers = {
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'accept-language': 'en-US,en;q=0.9',
+        'sec-ch-ua': '"Not)A;Brand";v="99", "Google Chrome";v="127", "Chromium";v="127"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'same-origin',
+        'sec-fetch-user': '?1',
+        'upgrade-insecure-requests': '1',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
+    }
 
-response = requests.get(url, headers=headers, data=payload)
-soup = BeautifulSoup(response.text, 'html.parser')
-table = soup.find('table', {'id': 'vehicles'})
+    response = requests.get(url, headers=headers, data=payload)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    table = soup.find('table', {'id': 'vehicles'})
 
-cars_of_interest = []
+    cars_of_interest = []
 
-# Check if the table was found
-if table:
-    # Find all rows in the table
-    rows = table.find_all('tr')
-    print(f"{str(datetime.now())} - Successully fetched {len(rows)} cars from UTPAP.")
-    
-    for row in rows:
-        # Get all the columns in the row
-        cols = row.find_all('td')
-        # Extract text from each column and strip any extra whitespace
-        col_data = [col.text.strip() for col in cols]
-        if col_data:
-            try:
-                year = int(col_data[0])
-                make = col_data[1].upper()
-                model = col_data[2].upper()
-                color = col_data[3]
-                stock_num = col_data[5]
-                row = col_data[6]
-                date = col_data[7]
-                image = f"https://utpap.com/Orem-inventory-photos/{stock_num}.jpeg"
+    health = "healthy"
 
-                car_data = {
-                    "year": year,
-                    "model": model,
-                    "color": color,
-                    "stock_num": stock_num,
-                    "row": row,
-                    "date": date,
-                    "image": image
-                }
+    # Check if the table was found
+    if table:
+        # Find all rows in the table
+        rows = table.find_all('tr')
+        print(f"{str(datetime.now())} - Successully fetched {len(rows)} cars from UTPAP.")
+        
+        for row in rows:
+            # Get all the columns in the row
+            cols = row.find_all('td')
+            # Extract text from each column and strip any extra whitespace
+            col_data = [col.text.strip() for col in cols]
+            if col_data:
+                try:
+                    year = int(col_data[0])
+                    make = col_data[1].upper()
+                    model = col_data[2].upper()
+                    color = col_data[3]
+                    stock_num = col_data[5]
+                    row = col_data[6]
+                    date = col_data[7]
+                    image = f"https://utpap.com/Orem-inventory-photos/{stock_num}.jpeg"
 
-                if "MERCEDES" in make:
-                    if (year >= 1976 and year <= 1985) or (year >= 1996 and year <= 2002 and model == "E-CLASS"):
-                        cars_of_interest.append(car_data)
-                        # Check if the car is already in the database
-                        existing_car = collection.find_one({"stock_num": stock_num})
-                        if existing_car is None:
-                            # Send the notification
-                            send_to_home_assistant(car_data)
-                            # Add the car to the database
-                            collection.insert_one(car_data)
-            except ValueError:
-                # Handle the case where conversion to int fails (e.g., year is not a number)
-                print(f"{str(datetime.now())} - Skipping row with invalid data: {col_data}")
-else:
-    print(f"{str(datetime.now())} - Table not found.")
+                    car_data = {
+                        "year": year,
+                        "model": model,
+                        "color": color,
+                        "stock_num": stock_num,
+                        "row": row,
+                        "date": date,
+                        "image": image
+                    }
 
-# Fetch all records from MongoDB
-existing_cars = fetch_all_records()
+                    if "MERCEDES" in make:
+                        if (year >= 1976 and year <= 1985) or (year >= 1996 and year <= 2002 and model == "E-CLASS"):
+                            cars_of_interest.append(car_data)
+                            # Check if the car is already in the database
+                            existing_car = collection.find_one({"stock_num": stock_num})
+                            if existing_car is None:
+                                # Send the notification
+                                send_to_home_assistant(car_data)
+                                # Add the car to the database
+                                collection.insert_one(car_data)
+                except ValueError:
+                    # Handle the case where conversion to int fails (e.g., year is not a number)
+                    print(f"{str(datetime.now())} - Skipping row with invalid data: {col_data}")
+                    update_health_status("unhealthy")
+    else:
+        print(f"{str(datetime.now())} - Table not found.")
+        health = "unhealthy"
 
-# Delete old records not found in the latest search
-delete_old_records(existing_cars, cars_of_interest)
+    # Fetch all records from MongoDB
+    existing_cars = fetch_all_records()
+
+    # Delete old records not found in the latest search
+    delete_old_records(existing_cars, cars_of_interest)
+
+    # If everything is successful, set the status to healthy
+    update_health_status(health)
+except Exception as e:
+    print(f"{str(datetime.now())} - An error occurred: {e}")
+    update_health_status("unhealthy")

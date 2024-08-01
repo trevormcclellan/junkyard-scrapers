@@ -25,5 +25,14 @@ RUN touch /var/log/cron.log
 # Install cron
 RUN apt-get update && apt-get install -y cron
 
+# Copy the health check script
+COPY healthcheck.sh /healthcheck.sh
+
+# Give execution rights on the health check script
+RUN chmod +x /healthcheck.sh
+
+# Define the health check
+HEALTHCHECK --interval=60s --timeout=10s --start-period=5s --retries=3 CMD /healthcheck.sh
+
 # Run the command on container startup
 CMD cron && tail -f /var/log/cron.log
