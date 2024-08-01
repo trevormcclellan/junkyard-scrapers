@@ -78,7 +78,7 @@ def fetch_vehicle_details(vin):
         update_health_status("unhealthy")
         return None
 
-def update_health_status(status, script_name):
+def update_health_status(status):
     directory = "/tmp/tearapart"
     if not os.path.exists(directory):
         os.makedirs(directory)

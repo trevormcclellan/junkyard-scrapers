@@ -42,7 +42,7 @@ def delete_old_records(existing_cars, latest_cars):
             collection.delete_one({"stock_num": car['stock_num']})
             print(f"{str(datetime.now())} - Deleted record with stock_num: {car['stock_num']}")
 
-def update_health_status(status, script_name):
+def update_health_status(status):
     directory = "/tmp/UTPAP"
     if not os.path.exists(directory):
         os.makedirs(directory)
