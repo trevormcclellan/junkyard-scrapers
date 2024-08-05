@@ -143,6 +143,7 @@ try:
             color = car['color']
             vin = car['vin'].strip()
             stock_num = car['stocknumber']
+            reference = car['reference']
             row = car['vehicle_row']
             date = car['yard_date']
             image_url = car['image_url'].strip().split('"')[1]  # Extract image URL from HTML string
@@ -155,6 +156,7 @@ try:
                     "color": color,
                     "vin": vin,
                     "stock_num": stock_num,
+                    "reference": reference,
                     "row": row,
                     "date": date,
                     "image": image_url

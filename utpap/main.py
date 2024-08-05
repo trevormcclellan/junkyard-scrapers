@@ -50,7 +50,7 @@ def update_health_status(status):
         file.write(status)
 
 try:
-    url = "https://utpap.com/orem-inventory"
+    url = "https://utpap.com/search-inventory_orem.php?make=MERCEDES-BENZ&model="
     payload = {}
     headers = {
         'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -68,7 +68,7 @@ try:
 
     response = requests.get(url, headers=headers, data=payload)
     soup = BeautifulSoup(response.text, 'html.parser')
-    table = soup.find('table', {'id': 'vehicles'})
+    table = soup.find('table', {'class': 'resultsTable', 'id': 'cars-table'})
 
     cars_of_interest = []
 
@@ -88,12 +88,11 @@ try:
             if col_data:
                 try:
                     year = int(col_data[0])
-                    make = col_data[1].upper()
                     model = col_data[2].upper()
-                    color = col_data[3]
-                    stock_num = col_data[5]
+                    stock_num = col_data[3]
+                    color = col_data[4]
                     row = col_data[6]
-                    date = col_data[7]
+                    date = col_data[8]
                     image = f"https://utpap.com/Orem-inventory-photos/{stock_num}.jpeg"
 
                     car_data = {
@@ -106,16 +105,15 @@ try:
                         "image": image
                     }
 
-                    if "MERCEDES" in make:
-                        if (year >= 1976 and year <= 1985) or (year >= 1996 and year <= 2002 and model == "E-CLASS"):
-                            cars_of_interest.append(car_data)
-                            # Check if the car is already in the database
-                            existing_car = collection.find_one({"stock_num": stock_num})
-                            if existing_car is None:
-                                # Send the notification
-                                send_to_home_assistant(car_data)
-                                # Add the car to the database
-                                collection.insert_one(car_data)
+                    if (year >= 1976 and year <= 1985) or (year >= 1996 and year <= 2002 and model == "E-CLASS"):
+                        cars_of_interest.append(car_data)
+                        # Check if the car is already in the database
+                        existing_car = collection.find_one({"stock_num": stock_num})
+                        if existing_car is None:
+                            # Send the notification
+                            send_to_home_assistant(car_data)
+                            # Add the car to the database
+                            collection.insert_one(car_data)
                 except ValueError:
                     # Handle the case where conversion to int fails (e.g., year is not a number)
                     print(f"{str(datetime.now())} - Skipping row with invalid data: {col_data}")
