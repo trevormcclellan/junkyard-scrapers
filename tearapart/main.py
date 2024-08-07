@@ -193,7 +193,7 @@ try:
     update_health_status("healthy")
 
 except Exception as e:
-    print(f"{str(datetime.now())} - An error occurred: {e}")
+    print(f"{str(datetime.now())} - An error occurred in tearapart: {e}")
     update_health_status("unhealthy")
 
 # Close MongoDB connection

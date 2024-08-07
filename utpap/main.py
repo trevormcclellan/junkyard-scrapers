@@ -131,5 +131,5 @@ try:
     # If everything is successful, set the status to healthy
     update_health_status(health)
 except Exception as e:
-    print(f"{str(datetime.now())} - An error occurred: {e}")
+    print(f"{str(datetime.now())} - An error occurred in UTPAP: {e}")
     update_health_status("unhealthy")

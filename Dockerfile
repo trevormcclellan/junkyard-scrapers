@@ -34,5 +34,5 @@ RUN chmod +x /healthcheck.sh
 # Define the health check
 HEALTHCHECK --interval=60s --timeout=10s --start-period=5s --retries=3 CMD /healthcheck.sh
 
-# Run the command on container startup
-CMD cron && tail -f /var/log/cron.log
+# Run both scripts on container startup and start cron
+CMD ["sh", "-c", "python /app/tearapart/main.py && python /app/utpap/main.py && cron && tail -f /var/log/cron.log"]
