@@ -4,6 +4,7 @@ import os
 from pymongo import MongoClient
 from bs4 import BeautifulSoup
 from datetime import datetime
+from traceback import print_exc
 import re
 import sys
 
@@ -193,7 +194,7 @@ try:
     update_health_status("healthy")
 
 except Exception as e:
-    print(f"{str(datetime.now())} - An error occurred in tearapart: {e}")
+    print(f"{str(datetime.now())} - An error occurred in tearapart: {print_exc(e)}")
     update_health_status("unhealthy")
 
 # Close MongoDB connection

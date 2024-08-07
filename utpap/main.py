@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from datetime import datetime
+from traceback import print_exc
 import os
 
 # Load environment variables
@@ -90,15 +91,15 @@ try:
                     year = int(col_data[0])
                     model = col_data[2].upper()
                     stock_num = col_data[3]
-                    color = col_data[4]
-                    row = col_data[6]
-                    date = col_data[8]
+                    # color = col_data[4]
+                    row = col_data[5]
+                    date = col_data[6]
                     image = f"https://utpap.com/Orem-inventory-photos/{stock_num}.jpeg"
 
                     car_data = {
                         "year": year,
                         "model": model,
-                        "color": color,
+                        # "color": color,
                         "stock_num": stock_num,
                         "row": row,
                         "date": date,
@@ -131,5 +132,5 @@ try:
     # If everything is successful, set the status to healthy
     update_health_status(health)
 except Exception as e:
-    print(f"{str(datetime.now())} - An error occurred in UTPAP: {e}")
+    print(f"{str(datetime.now())} - An error occurred in UTPAP: {print_exc(e)}")
     update_health_status("unhealthy")
