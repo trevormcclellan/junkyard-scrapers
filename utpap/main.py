@@ -91,6 +91,7 @@ try:
                     year = int(col_data[0])
                     model = col_data[2].upper()
                     stock_num = col_data[3]
+                    engine = col_data[4]
                     # color = col_data[4]
                     row = col_data[5]
                     date = col_data[6]
@@ -99,6 +100,7 @@ try:
                     car_data = {
                         "year": year,
                         "model": model,
+                        "engine": engine,
                         # "color": color,
                         "stock_num": stock_num,
                         "row": row,
