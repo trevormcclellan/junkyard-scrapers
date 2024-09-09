@@ -92,7 +92,7 @@ try:
 
     # Payload for the POST request
     payload = {
-        "sif_form_field_store": "SALT LAKE CITY",
+        # "sif_form_field_store": "SALT LAKE CITY",
         "sif_form_field_make": "MERCEDES-BENZ",
         "makes-sorting-order": "0",
         "models-sorting-order": "0",
@@ -139,6 +139,7 @@ try:
     # Iterate through each car in the response
     for car in cars:
         try:
+            yard_name = car['yard_name']
             year = int(car['iyear'])
             model = (car['model'] or car['hol_model']).upper()
             color = car['color']
@@ -152,6 +153,7 @@ try:
             # Apply filter criteria
             if (year >= 1976 and year <= 1985) or (year >= 1996 and year <= 2002 and model == "E-CLASS"):
                 car_data = {
+                    "location": yard_name,
                     "year": year,
                     "model": model,
                     "color": color,
