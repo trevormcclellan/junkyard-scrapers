@@ -4,4 +4,7 @@
 # Schedule scraper2 to run every hour
 0 * * * * root /usr/local/bin/python3 /app/utpap/main.py >> /var/log/cron.log 2>&1
 
+# Schedule scraper3 to run every hour
+0 * * * * root /usr/local/bin/python3 /app/pullnsave/main.py >> /var/log/cron.log 2>&1
+
 # Ensure cron logs are written to stdout
