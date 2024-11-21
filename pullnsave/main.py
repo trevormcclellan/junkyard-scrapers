@@ -154,7 +154,16 @@ def search_yard(yard):
                         update_health_status("unhealthy")
         else:
             print(f"{str(datetime.now())} - Table not found.")
-            health = "unhealthy"
+            h2 = soup.find('h2')
+            if h2:
+                if "I'm sorry but there are no matching vehicles at" in h2.text:
+                    print(f"{str(datetime.now())} - No vehicles found in Pull-n-Save.")
+                else:
+                    print(f"{str(datetime.now())} - Unexpected text found: {h2.text}")
+                    health = "unhealthy"
+            else:
+                print(f"{str(datetime.now())} - h2 text not found.")
+                health = "unhealthy"
 
         # Fetch all records from MongoDB
         existing_cars = fetch_all_records(yard)
