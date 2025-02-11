@@ -33,20 +33,25 @@ def send_to_home_assistant(data):
         update_health_status("unhealthy")
 
 def fetch_nonce():
-    url = "https://tearapart.com/used-auto-parts/inventory/"
-    headers = {
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
-    }
+    try:
+        url = "https://tearapart.com/used-auto-parts/inventory/"
+        headers = {
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+        }
 
-    response = requests.get(url, headers=headers)
-    html_content = response.text
+        response = requests.get(url, headers=headers)
+        html_content = response.text
 
-    soup = BeautifulSoup(html_content, 'html.parser')
-    script_tag = soup.find('script', {'id': 'sif_plugin js frontend main-js-extra'})
-    script_content = script_tag.string
+        soup = BeautifulSoup(html_content, 'html.parser')
+        script_tag = soup.find('script', {'id': 'sif_plugin js frontend main-js-extra'})
+        script_content = script_tag.string
 
-    nonce_match = re.search(r'sif_ajax_nonce":"(\w+)"', script_content)
-    return nonce_match.group(1) if nonce_match else None
+        nonce_match = re.search(r'sif_ajax_nonce":"(\w+)"', script_content)
+        return nonce_match.group(1) if nonce_match else None
+    except Exception as e:
+        print(f"{str(datetime.now())} - Error fetching nonce: {str(e)}")
+        update_health_status("unhealthy")
+        return None
 
 def fetch_all_records():
     """Fetch all records from MongoDB collection."""
