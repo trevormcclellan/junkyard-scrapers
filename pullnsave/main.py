@@ -20,7 +20,7 @@ db = client[MONGO_DB_NAME]
 collection = db[MONGO_COLLECTION_NAME]
 
 # Home Assistant webhook URL
-home_assistant_webhook_url = f"https://ha.tsmcclel.cfd/api/webhook/{os.getenv('HOME_ASSISTANT_WEBHOOK_ID')}"
+home_assistant_webhook_url = f"https://ha.tsmcclel.top/api/webhook/{os.getenv('HOME_ASSISTANT_WEBHOOK_ID')}"
 
 def send_to_home_assistant(data):
     response = requests.post(home_assistant_webhook_url, json=data)
