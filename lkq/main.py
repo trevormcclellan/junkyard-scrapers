@@ -184,7 +184,8 @@ def search_yard(yard):
                 
         else:
             print(f"{str(datetime.now())} - pypvi_resultRow div not found.")
-            health = "unhealthy"
+            update_health_status("unhealthy")
+            return
 
         # Fetch all records from MongoDB
         existing_cars = fetch_all_records(yard)
