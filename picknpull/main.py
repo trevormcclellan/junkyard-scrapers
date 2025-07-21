@@ -9,6 +9,8 @@ import sys
 # Load environment variables
 load_dotenv()
 
+LOGGING_PREFIX = "(Pick-n-Pull)"
+
 # MongoDB connection details
 MONGO_URI = os.getenv('MONGO_URI')
 MONGO_DB_NAME = os.getenv('MONGO_DB_NAME')
@@ -25,9 +27,9 @@ home_assistant_webhook_url = f"https://ha.tsmcclel.top/api/webhook/{os.getenv('H
 def send_to_home_assistant(data):
     response = requests.post(home_assistant_webhook_url, json=data)
     if response.status_code == 200:
-        print(f"{str(datetime.now())} - Data sent to Home Assistant successfully.")
+        print(f"{str(datetime.now())} - {LOGGING_PREFIX} Data sent to Home Assistant successfully.")
     else:
-        print(f"{str(datetime.now())} - Failed to send data to Home Assistant: {response.status_code}")
+        print(f"{str(datetime.now())} - {LOGGING_PREFIX} Failed to send data to Home Assistant: {response.status_code}")
         update_health_status("unhealthy")
 
 def fetch_all_records():
@@ -41,7 +43,7 @@ def delete_old_records(existing_cars, latest_cars):
     for car in existing_cars:
         if car['stock_num'] not in latest_stock_nums:
             collection.delete_one({"stock_num": car['stock_num']})
-            print(f"{str(datetime.now())} - Deleted record with stock_num: {car['stock_num']}")
+            print(f"{str(datetime.now())} - {LOGGING_PREFIX} Deleted record: {car}")
 
 def fetch_vehicle_details(vin):
     """Fetch vehicle details from picknpull using VIN."""
@@ -52,11 +54,11 @@ def fetch_vehicle_details(vin):
             data = response.json()
             return data["vehicle"]
         else:
-            print(f"{str(datetime.now())} - Failed to fetch vehicle details for VIN {vin}.")
+            print(f"{str(datetime.now())} - {LOGGING_PREFIX} Failed to fetch vehicle details for VIN {vin}.")
             update_health_status("unhealthy")
             return None
     except Exception as e:
-        print(f"{str(datetime.now())} - Error fetching vehicle details for VIN {vin}: {str(e)}")
+        print(f"{str(datetime.now())} - {LOGGING_PREFIX} Error fetching vehicle details for VIN {vin}: {str(e)}")
         update_health_status("unhealthy")
         return None
 
@@ -91,16 +93,16 @@ try:
                 cars = data['vehicles']
                 print(f"{str(datetime.now())} - Succesfully fetched {len(cars)} cars from Pick-n-Pull.")
             else:
-                print("Error: 'vehicles' key not found in the response")
+                print(f"{str(datetime.now())} - {LOGGING_PREFIX} Error: 'vehicles' key not found in the response - {response.text}")
                 update_health_status("unhealthy")
                 sys.exit(1)
         except Exception as e:
-            print("Error: Failed to parse JSON response")
+            print(f"{str(datetime.now())} - {LOGGING_PREFIX} Error parsing JSON response: {e} - {response.text}")
             update_health_status("unhealthy")
             sys.exit(1)
 
     except Exception as e:
-        print(f"{str(datetime.now())} - Error: Request failed - {e}")
+        print(f"{str(datetime.now())} - {LOGGING_PREFIX} Error: Request failed - {e}")
         update_health_status("unhealthy")
         sys.exit(1)
 
@@ -154,7 +156,7 @@ try:
 
         except ValueError:
             # Handle cases where conversion to int fails
-            print(f"{str(datetime.now())} - Skipping row with invalid data: {car}")
+            print(f"{str(datetime.now())} - {LOGGING_PREFIX} Skipping row with invalid data: {car}")
             update_health_status("unhealthy")
 
     # Fetch all records from MongoDB
@@ -167,7 +169,7 @@ try:
     update_health_status("healthy")
 
 except Exception as e:
-    print(f"{str(datetime.now())} - An error occurred in picknpull: {print_exc(e)}")
+    print(f"{str(datetime.now())} - {LOGGING_PREFIX} An error occurred in picknpull: {print_exc(e)}")
     update_health_status("unhealthy")
 
 # Close MongoDB connection

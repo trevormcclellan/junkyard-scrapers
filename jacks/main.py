@@ -9,6 +9,8 @@ import os
 # Load environment variables
 load_dotenv()
 
+LOGGING_PREFIX = "(Jack's Used Auto Parts)"
+
 # MongoDB connection details
 MONGO_URI = os.getenv('MONGO_URI')
 MONGO_DB_NAME = os.getenv('MONGO_DB_NAME')
@@ -25,9 +27,9 @@ home_assistant_webhook_url = f"https://ha.tsmcclel.top/api/webhook/{os.getenv('H
 def send_to_home_assistant(data):
     response = requests.post(home_assistant_webhook_url, json=data)
     if response.status_code == 200:
-        print(f"{str(datetime.now())} - Data sent to Home Assistant successfully.")
+        print(f"{str(datetime.now())} - {LOGGING_PREFIX} Data sent to Home Assistant successfully.")
     else:
-        print(f"{str(datetime.now())} - Failed to send data to Home Assistant: {response.status_code}")
+        print(f"{str(datetime.now())} - {LOGGING_PREFIX} Failed to send data to Home Assistant: {response.status_code}")
         update_health_status("unhealthy")
 
 def fetch_all_records():
@@ -41,7 +43,7 @@ def delete_old_records(existing_cars, latest_cars):
     for car in existing_cars:
         if car['stock_num'] not in latest_stock_nums:
             collection.delete_one({"stock_num": car['stock_num']})
-            print(f"{str(datetime.now())} - Deleted record with stock_num: {car['stock_num']}")
+            print(f"{str(datetime.now())} - {LOGGING_PREFIX} Deleted record: {car}")
 
 def update_health_status(status):
     directory = "/tmp/jacks"
@@ -114,10 +116,10 @@ try:
                         collection.insert_one(car_data)
                 except ValueError:
                     # Handle the case where conversion to int fails (e.g., year is not a number)
-                    print(f"{str(datetime.now())} - Skipping row with invalid data: {col_data}")
+                    print(f"{str(datetime.now())} - {LOGGING_PREFIX} Skipping row with invalid data: {col_data}")
                     update_health_status("unhealthy")
     else:
-        print(f"{str(datetime.now())} - Table not found.")
+        print(f"{str(datetime.now())} - {LOGGING_PREFIX} Table not found.")
         health = "unhealthy"
 
     # Fetch all records from MongoDB
@@ -129,5 +131,5 @@ try:
     # If everything is successful, set the status to healthy
     update_health_status(health)
 except Exception as e:
-    print(f"{str(datetime.now())} - An error occurred in Jack's: {print_exc(e)}")
+    print(f"{str(datetime.now())} - {LOGGING_PREFIX} An error occurred in Jack's: {print_exc(e)}")
     update_health_status("unhealthy")

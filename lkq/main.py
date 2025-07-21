@@ -9,6 +9,8 @@ import os
 # Load environment variables
 load_dotenv()
 
+LOGGING_PREFIX = "(LKQ)"
+
 # MongoDB connection details
 MONGO_URI = os.getenv('MONGO_URI')
 MONGO_DB_NAME = os.getenv('MONGO_DB_NAME')
@@ -30,9 +32,9 @@ yard_ids = {
 def send_to_home_assistant(data):
     response = requests.post(home_assistant_webhook_url, json=data)
     if response.status_code == 200:
-        print(f"{str(datetime.now())} - Data sent to Home Assistant successfully.")
+        print(f"{str(datetime.now())} - {LOGGING_PREFIX} Data sent to Home Assistant successfully.")
     else:
-        print(f"{str(datetime.now())} - Failed to send data to Home Assistant: {response.status_code}")
+        print(f"{str(datetime.now())} - {LOGGING_PREFIX} Failed to send data to Home Assistant: {response.status_code}")
         update_health_status("unhealthy")
 
 def fetch_all_records(yard):
@@ -46,7 +48,7 @@ def delete_old_records(existing_cars, latest_cars):
     for car in existing_cars:
         if car['stock_num'] not in latest_stock_nums:
             collection.delete_one({"stock_num": car['stock_num']})
-            print(f"{str(datetime.now())} - Deleted record with stock_num: {car['stock_num']}")
+            print(f"{str(datetime.now())} - {LOGGING_PREFIX} Deleted record: {car}")
 
 def update_health_status(status):
     directory = "/tmp/LKQ"
@@ -95,11 +97,11 @@ def search_yard(yard):
                         car_data['make'] = make.upper()
                         car_data['model'] = model.upper()
                     else:
-                        print(f"{str(datetime.now())} - Skipping row with unexpected YMM format: {ymm_text}")
+                        print(f"{str(datetime.now())} - {LOGGING_PREFIX} Skipping row with unexpected YMM format: {ymm_text}")
                         update_health_status("unhealthy")
                         continue
                 else:
-                    print(f"{str(datetime.now())} - Skipping row without YMM tag.")
+                    print(f"{str(datetime.now())} - {LOGGING_PREFIX} Skipping row without YMM tag: {row}")
                     update_health_status("unhealthy")
                     continue
                 # Get all the details in the row with the class 'pypvi_detailItem'
@@ -148,7 +150,7 @@ def search_yard(yard):
                         if main_image and 'href' in main_image.attrs:
                             car_data['image'] = main_image['href']
                         else:
-                            print(f"{str(datetime.now())} - No main image found for row.")
+                            print(f"{str(datetime.now())} - {LOGGING_PREFIX} No main image found for row: {row}")
                             update_health_status("unhealthy")
 
                         # Extract all image URLs from the row
@@ -159,7 +161,7 @@ def search_yard(yard):
                             if image_urls:
                                 car_data['image_urls'] = image_urls
                         else:
-                            print(f"{str(datetime.now())} - No images found for row.")
+                            print(f"{str(datetime.now())} - {LOGGING_PREFIX} No images found for row: {row}")
                             update_health_status("unhealthy")
 
 
@@ -179,11 +181,11 @@ def search_yard(yard):
 
                     except ValueError:
                         # Handle the case where conversion to int fails (e.g., year is not a number)
-                        print(f"{str(datetime.now())} - Skipping row with invalid data: {detail.get_text(strip=True)}")
+                        print(f"{str(datetime.now())} - {LOGGING_PREFIX} Skipping row with invalid data: {detail.get_text(strip=True)}")
                         update_health_status("unhealthy")
                 
         else:
-            print(f"{str(datetime.now())} - pypvi_resultRow div not found.")
+            print(f"{str(datetime.now())} - {LOGGING_PREFIX} pypvi_resultRow div not found: {response.text}")
             update_health_status("unhealthy")
             return
 
@@ -196,7 +198,7 @@ def search_yard(yard):
         # If everything is successful, set the status to healthy
         update_health_status(health)
     except Exception as e:
-        print(f"{str(datetime.now())} - An error occurred in LKQ: {print_exc(e)}")
+        print(f"{str(datetime.now())} - {LOGGING_PREFIX} An error occurred in LKQ: {print_exc(e)}")
         update_health_status("unhealthy")
 
 search_yard("Dayton")
