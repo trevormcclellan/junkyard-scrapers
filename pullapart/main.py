@@ -4,6 +4,7 @@ import os
 from pymongo import MongoClient
 from datetime import datetime
 from traceback import print_exc
+from urllib.parse import urlparse
 import sys
 import json
 
@@ -92,6 +93,13 @@ def update_health_status(status):
         os.makedirs(directory)
     with open(f"{directory}/health_status.txt", "w") as file:
         file.write(status)
+
+def is_url(string):
+    try:
+        result = urlparse(string)
+        return all([result.scheme, result.netloc])
+    except ValueError:
+        return False
 
 try:
     # Pull-a-Part API endpoint
@@ -190,6 +198,18 @@ try:
                 send_to_home_assistant(car_data)
                 # Add the car to the database
                 collection.insert_one(car_data)
+
+            # Check if image has been added for an existing car if not already present
+            elif existing_car.get("image") is None or not is_url(existing_car["image"]):
+                # Fetch vehicle image if not already present
+                image_url = fetch_vehicle_image(car)
+                if image_url and image_url != existing_car.get("image"):
+                    print(f"{str(datetime.now())} - {LOGGING_PREFIX} Updating image for existing car: {stock_num}")
+                    existing_car["image"] = image_url
+                    collection.update_one({"stock_num": stock_num}, {"$set": {"image": image_url}})
+                    # Send to Home Assistant minus the Object ID
+                    existing_car.pop("_id", None)
+                    send_to_home_assistant(existing_car)
 
             cars_of_interest.append(car_data)
 
