@@ -70,39 +70,49 @@ def update_health_status(status):
     with open(f"{directory}/health_status.txt", "w") as file:
         file.write(status)
 
-try:
+def fetch_page(req_start, req_length):
     url = "https://upullandsave.com/wp-admin/admin-ajax.php"
 
     # Payload for the POST request
-    payload = "draw=1&columns%5B0%5D%5Bdata%5D=false&columns%5B0%5D%5Bname%5D=&columns%5B0%5D%5Bsearchable%5D=true&columns%5B0%5D%5Borderable%5D=false&columns%5B0%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B0%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B1%5D%5Bdata%5D=&columns%5B1%5D%5Bname%5D=&columns%5B1%5D%5Bsearchable%5D=true&columns%5B1%5D%5Borderable%5D=true&columns%5B1%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B1%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B2%5D%5Bdata%5D=year&columns%5B2%5D%5Bname%5D=&columns%5B2%5D%5Bsearchable%5D=true&columns%5B2%5D%5Borderable%5D=true&columns%5B2%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B2%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B3%5D%5Bdata%5D=make&columns%5B3%5D%5Bname%5D=&columns%5B3%5D%5Bsearchable%5D=true&columns%5B3%5D%5Borderable%5D=true&columns%5B3%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B3%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B4%5D%5Bdata%5D=model&columns%5B4%5D%5Bname%5D=&columns%5B4%5D%5Bsearchable%5D=true&columns%5B4%5D%5Borderable%5D=true&columns%5B4%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B4%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B5%5D%5Bdata%5D=stock_number&columns%5B5%5D%5Bname%5D=&columns%5B5%5D%5Bsearchable%5D=true&columns%5B5%5D%5Borderable%5D=true&columns%5B5%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B5%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B6%5D%5Bdata%5D=color&columns%5B6%5D%5Bname%5D=&columns%5B6%5D%5Bsearchable%5D=true&columns%5B6%5D%5Borderable%5D=true&columns%5B6%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B6%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B7%5D%5Bdata%5D=yard_row&columns%5B7%5D%5Bname%5D=&columns%5B7%5D%5Bsearchable%5D=true&columns%5B7%5D%5Borderable%5D=true&columns%5B7%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B7%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B8%5D%5Bdata%5D=date_set&columns%5B8%5D%5Bname%5D=&columns%5B8%5D%5Bsearchable%5D=true&columns%5B8%5D%5Borderable%5D=true&columns%5B8%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B8%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B9%5D%5Bdata%5D=vin&columns%5B9%5D%5Bname%5D=&columns%5B9%5D%5Bsearchable%5D=true&columns%5B9%5D%5Borderable%5D=true&columns%5B9%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B9%5D%5Bsearch%5D%5Bregex%5D=false&order%5B0%5D%5Bcolumn%5D=8&order%5B0%5D%5Bdir%5D=desc&order%5B0%5D%5Bname%5D=&start=0&length=10&search%5Bvalue%5D=&search%5Bregex%5D=false&action=yardsmart_integration&api_call=getInventoryDatatablesArray&params%5Byard_id%5D=232&params%5Byear%5D=false&params%5Bmake%5D=MERCEDES-BENZ&params%5Bmodel%5D=false&params%5Blog%5D=true"
+    payload = f"draw=1&columns%5B0%5D%5Bdata%5D=false&columns%5B0%5D%5Bname%5D=&columns%5B0%5D%5Bsearchable%5D=true&columns%5B0%5D%5Borderable%5D=false&columns%5B0%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B0%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B1%5D%5Bdata%5D=&columns%5B1%5D%5Bname%5D=&columns%5B1%5D%5Bsearchable%5D=true&columns%5B1%5D%5Borderable%5D=true&columns%5B1%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B1%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B2%5D%5Bdata%5D=year&columns%5B2%5D%5Bname%5D=&columns%5B2%5D%5Bsearchable%5D=true&columns%5B2%5D%5Borderable%5D=true&columns%5B2%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B2%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B3%5D%5Bdata%5D=make&columns%5B3%5D%5Bname%5D=&columns%5B3%5D%5Bsearchable%5D=true&columns%5B3%5D%5Borderable%5D=true&columns%5B3%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B3%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B4%5D%5Bdata%5D=model&columns%5B4%5D%5Bname%5D=&columns%5B4%5D%5Bsearchable%5D=true&columns%5B4%5D%5Borderable%5D=true&columns%5B4%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B4%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B5%5D%5Bdata%5D=stock_number&columns%5B5%5D%5Bname%5D=&columns%5B5%5D%5Bsearchable%5D=true&columns%5B5%5D%5Borderable%5D=true&columns%5B5%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B5%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B6%5D%5Bdata%5D=color&columns%5B6%5D%5Bname%5D=&columns%5B6%5D%5Bsearchable%5D=true&columns%5B6%5D%5Borderable%5D=true&columns%5B6%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B6%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B7%5D%5Bdata%5D=yard_row&columns%5B7%5D%5Bname%5D=&columns%5B7%5D%5Bsearchable%5D=true&columns%5B7%5D%5Borderable%5D=true&columns%5B7%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B7%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B8%5D%5Bdata%5D=date_set&columns%5B8%5D%5Bname%5D=&columns%5B8%5D%5Bsearchable%5D=true&columns%5B8%5D%5Borderable%5D=true&columns%5B8%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B8%5D%5Bsearch%5D%5Bregex%5D=false&columns%5B9%5D%5Bdata%5D=vin&columns%5B9%5D%5Bname%5D=&columns%5B9%5D%5Bsearchable%5D=true&columns%5B9%5D%5Borderable%5D=true&columns%5B9%5D%5Bsearch%5D%5Bvalue%5D=&columns%5B9%5D%5Bsearch%5D%5Bregex%5D=false&order%5B0%5D%5Bcolumn%5D=8&order%5B0%5D%5Bdir%5D=desc&order%5B0%5D%5Bname%5D=&start={req_start}&length={req_length}&search%5Bvalue%5D=&search%5Bregex%5D=false&action=yardsmart_integration&api_call=getInventoryDatatablesArray&params%5Byard_id%5D=232&params%5Byear%5D=false&params%5Bmake%5D=MERCEDES-BENZ&params%5Bmodel%5D=false&params%5Blog%5D=true"
     headers = {
     'content-type': 'application/x-www-form-urlencoded; charset=UTF-8'
     }
 
-    cars = []
-
     try:
         response = requests.post(url, headers=headers, data=payload)
         response.raise_for_status()  # Check for HTTP errors
-
-        try:
-            data = response.json()  # Attempt to parse JSON response
-            if 'data' in data:
-                cars = data['data']
-                print(f"{str(datetime.now())} - Succesfully fetched {len(cars)} cars from U Pull & Save.")
-            else:
-                print(f"{str(datetime.now())} - {LOGGING_PREFIX} Error: 'data' key not found in the response: {response.text}")
-                update_health_status("unhealthy")
-                sys.exit(1)
-        except Exception as e:
-            print(f"{str(datetime.now())} - {LOGGING_PREFIX} Error parsing JSON response: {e} - {response.text}")
-            update_health_status("unhealthy")
-            sys.exit(1)
+        return response.json()  # Return JSON response directly
 
     except Exception as e:
         print(f"{str(datetime.now())} - {LOGGING_PREFIX} Error: Request failed - {e}")
         update_health_status("unhealthy")
         sys.exit(1)
+    
+
+try:
+    cars = []
+    first_page_length = 10  # Number of records to fetch per page
+    data = fetch_page(0, first_page_length)
+
+    if 'data' in data:
+        cars = data['data']
+    else:
+        print(f"{str(datetime.now())} - {LOGGING_PREFIX} Error: 'data' key not found in the response: {data}")
+        update_health_status("unhealthy")
+        sys.exit(1)
+
+    records_total = data.get('recordsTotal', 0)
+    if records_total > first_page_length:
+        data = fetch_page(first_page_length, records_total - first_page_length)
+        if 'data' in data:
+            cars.extend(data['data'])
+        else:
+            print(f"{str(datetime.now())} - {LOGGING_PREFIX} Error: 'data' key not found in the response: {data}")
+            update_health_status("unhealthy")
+            sys.exit(1)
+        
+    print(f"{str(datetime.now())} - Succesfully fetched {len(cars)} cars from U Pull & Save.")
 
     # List to store cars of interest
     cars_of_interest = []
