@@ -136,6 +136,7 @@ try:
                 interest_level = 1
                 
             car_data = {
+                "location": "Hebron",
                 "year": year,
                 "model": model,
                 "vin": vin,
