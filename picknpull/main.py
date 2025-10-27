@@ -5,11 +5,13 @@ from pymongo import MongoClient
 from datetime import datetime
 from traceback import print_exc
 import sys
+import time
 
 # Load environment variables
 load_dotenv()
 
 LOGGING_PREFIX = "(Pick-n-Pull)"
+MAX_RETRIES = 3
 
 # MongoDB connection details
 MONGO_URI = os.getenv('MONGO_URI')
@@ -72,39 +74,37 @@ def update_health_status(status):
 try:
     # Pick-n-Pull API endpoint
     url = "https://www.picknpull.com/api/vehicle/search?&makeId=182&modelId=0&year=&distance=10&zip=43207&language=english"
-
-    # Payload for the POST request
     payload = {}
-
-    headers = {
-        'accept': 'application/json, text/plain, */*',
-    }
-
+    headers = {'accept': 'application/json, text/plain, */*'}
     cars = []
 
-    try:
-        response = requests.post(url, headers=headers, data=payload)
-        response.raise_for_status()  # Check for HTTP errors
-
+    # Retry loop
+    for attempt in range(1, MAX_RETRIES + 1):
         try:
-            data = response.json()  # Attempt to parse JSON response
+            response = requests.post(url, headers=headers, data=payload)
+            response.raise_for_status()  # Check for HTTP errors
+            data = response.json()
+
             data = data[0]
             if 'vehicles' in data:
                 cars = data['vehicles']
-                print(f"{str(datetime.now())} - Succesfully fetched {len(cars)} cars from Pick-n-Pull.")
+                print(f"{str(datetime.now())} - Successfully fetched {len(cars)} cars from Pick-n-Pull.")
+                break  # Exit retry loop on success
             else:
-                print(f"{str(datetime.now())} - {LOGGING_PREFIX} Error: 'vehicles' key not found in the response - {response.text}")
+                print(f"{str(datetime.now())} - {LOGGING_PREFIX} Error: 'vehicles' key not found in response - {response.text}")
                 update_health_status("unhealthy")
                 sys.exit(1)
-        except Exception as e:
-            print(f"{str(datetime.now())} - {LOGGING_PREFIX} Error parsing JSON response: {e} - {response.text}")
-            update_health_status("unhealthy")
-            sys.exit(1)
 
-    except Exception as e:
-        print(f"{str(datetime.now())} - {LOGGING_PREFIX} Error: Request failed - {e}")
-        update_health_status("unhealthy")
-        sys.exit(1)
+        except Exception as e:
+            print(f"{str(datetime.now())} - {LOGGING_PREFIX} Error: Request failed (attempt {attempt}/{MAX_RETRIES}) - {e}")
+
+            if attempt < MAX_RETRIES:
+                print(f"{str(datetime.now())} - {LOGGING_PREFIX} Retrying in 60 seconds...")
+                time.sleep(60)
+            else:
+                print(f"{str(datetime.now())} - {LOGGING_PREFIX} Max retries reached. Exiting.")
+                update_health_status("unhealthy")
+                sys.exit(1)
 
     # List to store cars of interest
     cars_of_interest = []
@@ -123,9 +123,9 @@ try:
             interest_level = 0  # Default interest level
 
             # Apply filter criteria
-            if (year >= 1976 and year <= 1985) or (year >= 1996 and year <= 2002 and model == "E-CLASS"):
+            if (1976 <= year <= 1985) or (1996 <= year <= 2002 and model == "E-CLASS"):
                 interest_level = 1
-                
+
             car_data = {
                 "location": location,
                 "year": year,
@@ -146,7 +146,7 @@ try:
                 car_data["engine"] = details.get("engine", "Unknown") if details else "Unknown"
                 car_data["transmission"] = details.get("transmission", "Unknown") if details else "Unknown"
                 car_data["color"] = details.get("color", "Unknown") if details else "Unknown"
-                
+
                 # Send the notification
                 send_to_home_assistant(car_data)
                 # Add the car to the database
