@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import os
 from pymongo import MongoClient
 from datetime import datetime
-from traceback import print_exc
+from traceback import format_exc
 from urllib.parse import urlparse
 import sys
 import json
@@ -228,7 +228,7 @@ try:
     update_health_status("healthy")
 
 except Exception as e:
-    print(f"{str(datetime.now())} - {LOGGING_PREFIX} An error occurred in pullapart: {print_exc(e)}")
+    print(f"{str(datetime.now())} - {LOGGING_PREFIX} An error occurred in pullapart: {format_exc()}")
     update_health_status("unhealthy")
 
 # Close MongoDB connection

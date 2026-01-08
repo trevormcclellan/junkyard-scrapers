@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from datetime import datetime
-from traceback import print_exc
+from traceback import format_exc
 import os
 
 # Load environment variables
@@ -174,7 +174,7 @@ def search_yard(yard):
         # If everything is successful, set the status to healthy
         update_health_status(health)
     except Exception as e:
-        print(f"{str(datetime.now())} - An error occurred in pullnsave: {print_exc(e)}")
+        print(f"{str(datetime.now())} - An error occurred in pullnsave: {format_exc()}")
         update_health_status("unhealthy")
 
 search_yard(1)

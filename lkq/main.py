@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from datetime import datetime
-from traceback import print_exc
+from traceback import format_exc
 import os
 
 # Load environment variables
@@ -62,10 +62,10 @@ def fetch_page(page, location):
     yard_id = yard_ids.get(yard)
     yard = yard.lower()
     yard_id = yard_ids.get(yard)
-    url = f"https://www.lkqpickyourpart.com/DesktopModules/pyp_vehicleInventory/getVehicleInventory.aspx?page=1&filter=mercedes&store={yard_id}"
+    url = f"https://www.pyp.com/DesktopModules/pyp_vehicleInventory/getVehicleInventory.aspx?page=1&filter=mercedes&store={yard_id}"
     payload = {}
     headers = {
-        'referer': f'https://www.lkqpickyourpart.com/inventory/{yard}-{yard_id}/?search=mercedes'
+        'referer': f'https://www.pyp.com/inventory/{yard}-{yard_id}/?search=mercedes'
     }
 
     response = requests.get(url, headers=headers, data=payload)
@@ -212,7 +212,7 @@ def search_yard(yard):
         # If everything is successful, set the status to healthy
         update_health_status(health)
     except Exception as e:
-        print(f"{str(datetime.now())} - {LOGGING_PREFIX} An error occurred in LKQ: {print_exc(e)}")
+        print(f"{str(datetime.now())} - {LOGGING_PREFIX} An error occurred in LKQ: {format_exc()}")
         update_health_status("unhealthy")
 
 search_yard("Dayton")
