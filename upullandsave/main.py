@@ -172,6 +172,7 @@ try:
             color = car['color']
             row = car['yard_row']
             date = car['date_set']
+            notes = car['notes']
             image_url = (
                 add_extra_slash(car['images'][0]['full'])
                 if car['images']
@@ -198,6 +199,7 @@ try:
                 "color": color,
                 "row": row,
                 "date": date,
+                "notes": notes,
                 "image": image_url,
                 "image_urls": image_urls,
                 "interest_level": interest_level
