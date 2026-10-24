@@ -5,6 +5,7 @@ from pymongo import MongoClient
 from datetime import datetime
 from traceback import format_exc
 import os
+import re
 
 # Load environment variables
 load_dotenv()
@@ -30,12 +31,12 @@ yard_ids = {
 }
 
 def send_to_home_assistant(data):
-    response = requests.post(home_assistant_webhook_url, json=data)
+    response = requests.post(home_assistant_webhook_url, json=data, timeout=30)
     if response.status_code == 200:
         print(f"{str(datetime.now())} - {LOGGING_PREFIX} Data sent to Home Assistant successfully.")
     else:
         print(f"{str(datetime.now())} - {LOGGING_PREFIX} Failed to send data to Home Assistant: {response.status_code}")
-        update_health_status("unhealthy")
+        raise RuntimeError(f"Home Assistant returned HTTP {response.status_code}")
 
 def fetch_all_records(yard):
     """Fetch all records from MongoDB collection."""
@@ -47,7 +48,7 @@ def delete_old_records(existing_cars, latest_cars):
 
     for car in existing_cars:
         if car['stock_num'] not in latest_stock_nums:
-            collection.delete_one({"stock_num": car['stock_num']})
+            collection.delete_one({"location": car["location"], "stock_num": car["stock_num"]})
             print(f"{str(datetime.now())} - {LOGGING_PREFIX} Deleted record: {car}")
 
 def update_health_status(status):
@@ -59,162 +60,112 @@ def update_health_status(status):
 
 def fetch_page(page, location):
     yard = location.lower()
-    yard_id = yard_ids.get(yard)
-    yard = yard.lower()
-    yard_id = yard_ids.get(yard)
-    url = f"http://cloudflare-bypass:8000/DesktopModules/pyp_vehicleInventory/getVehicleInventory.aspx?page=1&filter=mercedes&store={yard_id}"
-    payload = {}
+    yard_id = yard_ids[yard]
+    url = (
+        "http://cloudflare-bypass:8000/DesktopModules/pyp_vehicleInventory/"
+        f"getVehicleInventory.aspx?page={page}&filter=mercedes&store={yard_id}"
+    )
     headers = {
-        'x-hostname': f'https://www.pyp.com',
+        'x-hostname': 'https://www.pyp.com',
         'referer': f'https://www.pyp.com/inventory/{yard}-{yard_id}/?search=mercedes'
     }
-
-    response = requests.get(url, headers=headers, data=payload)
-    response.raise_for_status()  # Raise an error for bad responses
+    response = requests.get(url, headers=headers, timeout=60)
+    response.raise_for_status()
     return response.text
+
+
+def parse_car(row, yard):
+    """Parse the October 2026 inventory markup into the existing webhook schema."""
+    car = {"location": yard, "interest_level": 0}
+    ymm = row.select_one('.pypvi_ymm')
+    if ymm is None:
+        raise ValueError("Vehicle is missing its year/make/model")
+    parts = ymm.get_text(' ', strip=True).split(maxsplit=2)
+    if len(parts) != 3:
+        raise ValueError(f"Unexpected year/make/model: {parts}")
+    car.update(year=int(parts[0]), make=parts[1].upper(), model=parts[2].upper())
+
+    # Example: <div class="pypvi_stock">Silver · 1253-39358</div>
+    stock = row.select_one('.pypvi_stock')
+    stock_text = stock.get_text(' ', strip=True) if stock else ''
+    color, separator, stock_num = stock_text.rpartition('·')
+    car['stock_num'] = stock_num.strip() if separator else row.get('id', '').strip()
+    car['color'] = color.strip() if separator else ''
+    if not re.fullmatch(r'\d+-\d+', car['stock_num']):
+        raise ValueError(f"Missing or invalid stock number: {stock_text!r}")
+
+    # Labels are now spans, and their values are bold within table cells.
+    for cell in row.select('table.locate td'):
+        label, value = cell.find('span'), cell.find('b')
+        if label is not None and value is not None:
+            key = label.get_text(strip=True).rstrip(':').lower()
+            if key in ('section', 'row', 'space'):
+                car[key] = value.get_text(' ', strip=True)
+
+    for detail in row.select('.pypvi_detailItem'):
+        match = re.match(r'^VIN\s*:?\s+([A-Z0-9]+)\b',
+                         detail.get_text(' ', strip=True), re.IGNORECASE)
+        if match:
+            car['vin'] = match.group(1).upper()
+            break
+    time_tag = row.select_one('.pypvi_available time')
+    if time_tag is not None:
+        car['date'] = time_tag.get('datetime') or time_tag.get_text(strip=True)
+
+    main_image = row.select_one('a.pypvi_image[href]')
+    if main_image is not None:
+        car['image'] = main_image['href']
+    # Keep the same image_urls behavior as the original checker (extra photos).
+    car['image_urls'] = [a['href'] for a in row.select('.pypvi_images a[href]')]
+    for field in ('vin', 'date', 'section', 'row', 'space'):
+        if not car.get(field):
+            raise ValueError(f"Vehicle {car['stock_num']} is missing {field}")
+
+    year, model = car['year'], car['model']
+    if 1976 <= year <= 1985 or (1996 <= year <= 2002 and model.startswith('E')):
+        car['interest_level'] = 1
+    return car
+
 
 def search_yard(yard):
     try:
-        cars_of_interest = []
+        latest_cars = []
+        seen = set()
         page_num = 1
-
         while True:
-            page = fetch_page(page_num, yard)
+            soup = BeautifulSoup(fetch_page(page_num, yard), 'html.parser')
+            rows = soup.select('.pypvi_resultRow')
+            end = soup.select_one('.pypvi_end')
+            if not rows and end is None:
+                raise ValueError(f"No inventory rows or end marker on page {page_num}")
+            for row in rows:
+                car = parse_car(row, yard)
+                if car['stock_num'] in seen:
+                    raise ValueError(f"Repeated stock number on page {page_num}: {car['stock_num']}")
+                seen.add(car['stock_num'])
+                latest_cars.append(car)
+            print(f"{datetime.now()} - {LOGGING_PREFIX} Fetched {len(rows)} cars from {yard}, page {page_num}.")
+            if end is not None:
+                break
             page_num += 1
-            soup = BeautifulSoup(page, 'html.parser')
-            rows = soup.find_all('div', {'class': 'pypvi_resultRow'})
+            if page_num > 1000:
+                raise ValueError("Inventory exceeded pagination safety limit")
 
-
-            health = "healthy"
-
-            # Check if the rows were found
-            if rows:
-                print(f"{str(datetime.now())} - Successully fetched {len(rows)} cars from LKQ.")
-                for row in rows:
-                    car_data = {
-                        "location": yard,
-                        "interest_level": 0,
-                    }
-                    # Extract the year and model from the row
-                    ymm_tag = row.find('a', {'class': 'pypvi_ymm'})
-                    if ymm_tag:
-                        # Get all the text, join with spaces to remove HTML artifacts like <wbr>
-                        ymm_text = ' '.join(ymm_tag.stripped_strings)  # E.g. '2014 MERCEDES-BENZ GL450'
-                        parts = ymm_text.split(maxsplit=2)
-
-                        if len(parts) == 3:
-                            year, make, model = parts
-                            car_data['year'] = int(year)
-                            car_data['make'] = make.upper()
-                            car_data['model'] = model.upper()
-                        else:
-                            print(f"{str(datetime.now())} - {LOGGING_PREFIX} Skipping row with unexpected YMM format: {ymm_text}")
-                            update_health_status("unhealthy")
-                            continue
-                    else:
-                        print(f"{str(datetime.now())} - {LOGGING_PREFIX} Skipping row without YMM tag: {row}")
-                        update_health_status("unhealthy")
-                        continue
-                    # Get all the details in the row with the class 'pypvi_detailItem'
-                    details = row.find_all('div', {'class': 'pypvi_detailItem'})
-                    for detail in details:
-                        try:
-                            for b_tag in detail.find_all('b'):
-                                key = b_tag.get_text(strip=True).rstrip(':')
-                                
-                                # Value is usually a direct sibling
-                                value = ''
-                                next_node = b_tag.next_sibling
-
-                                # If value is plain text (string or NavigableString)
-                                while next_node and (next_node.name is None or next_node.name == 'br'):
-                                    if isinstance(next_node, str):
-                                        value += next_node.strip()
-                                    next_node = next_node.next_sibling
-
-                                # Special case: "Available" uses a <time> tag
-                                if key == "Available":
-                                    time_tag = b_tag.find_next('time')
-                                    if time_tag and time_tag.has_attr('datetime'):
-                                        value = time_tag['datetime']
-                                    elif time_tag:
-                                        value = time_tag.get_text(strip=True)
-
-                                # Store in dictionary
-                                if key == "Color":
-                                    car_data['color'] = value
-                                elif key == "VIN":
-                                    car_data['vin'] = value
-                                elif key == "Stock #":
-                                    car_data['stock_num'] = value
-                                elif key == "Available":
-                                    car_data['date'] = value
-                                elif key == "Section":
-                                    car_data['section'] = value
-                                elif key == "Row":
-                                    car_data['row'] = value
-                                elif key == "Space":
-                                    car_data['space'] = value
-
-                        except ValueError:
-                            # Handle the case where conversion to int fails (e.g., year is not a number)
-                            print(f"{str(datetime.now())} - {LOGGING_PREFIX} Skipping row with invalid data: {detail.get_text(strip=True)}")
-                            update_health_status("unhealthy")
-
-                    # Extract the main image URL from the row
-                    main_image = row.find('a', {'class': 'pypvi_image'})
-                    if main_image and 'href' in main_image.attrs:
-                        car_data['image'] = main_image['href']
-                    else:
-                        print(f"{str(datetime.now())} - {LOGGING_PREFIX} No main image found for row: {row}")
-                        update_health_status("unhealthy")
-
-                    # Extract all image URLs from the row
-                    image_urls = []
-                    images_div = row.find('div', {'class': 'pypvi_images'})
-                    if images_div:
-                        image_urls = [a['href'] for a in images_div.find_all('a', href=True)]
-                        if image_urls:
-                            car_data['image_urls'] = image_urls
-                    else:
-                        print(f"{str(datetime.now())} - {LOGGING_PREFIX} No images found for row: {row}")
-                        update_health_status("unhealthy")
-
-
-                    year = car_data['year']
-                    model = car_data['model']
-                    if (year >= 1976 and year <= 1985) or (year >= 1996 and year <= 2002 and model.startswith('E')):
-                        car_data['interest_level'] = 1  # Set interest level for cars of interest
-
-                    cars_of_interest.append(car_data)
-                    # Check if the car is already in the database
-                    existing_car = collection.find_one({"stock_num": car_data['stock_num']})
-                    if existing_car is None:
-                        # Send the notification
-                        send_to_home_assistant(car_data)
-                        # Add the car to the database
-                        collection.insert_one(car_data)
-
-                end = soup.find('div', {'class': 'pypvi_end'})
-                if end:
-                    break
-                    
-            else:
-                print(f"{str(datetime.now())} - {LOGGING_PREFIX} pypvi_resultRow div not found: {page}")
-                update_health_status("unhealthy")
-                return
-
-        # Fetch all records from MongoDB
-        existing_cars = fetch_all_records(yard)
-
-        # Delete old records not found in the latest search
-        delete_old_records(existing_cars, cars_of_interest)
-
-        # If everything is successful, set the status to healthy
-        update_health_status(health)
-    except Exception as e:
-        print(f"{str(datetime.now())} - {LOGGING_PREFIX} An error occurred in LKQ: {format_exc()}")
+        # Only change the database after every page has been parsed successfully.
+        for car in latest_cars:
+            key = {"location": yard, "stock_num": car['stock_num']}
+            if collection.find_one(key) is None:
+                send_to_home_assistant(car)
+                collection.insert_one(car)
+        delete_old_records(fetch_all_records(yard), latest_cars)
+        return True
+    except Exception:
+        print(f"{datetime.now()} - {LOGGING_PREFIX} An error occurred in {yard}: {format_exc()}")
         update_health_status("unhealthy")
+        return False
 
-search_yard("Dayton")
-search_yard("Cincinnati")
+
+if __name__ == '__main__':
+    # Run both yards even if one fails; don't let the second hide the first failure.
+    results = [search_yard("Dayton"), search_yard("Cincinnati")]
+    update_health_status("healthy" if all(results) else "unhealthy")
