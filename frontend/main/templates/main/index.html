@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Inventory</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+    <link rel="mask-icon" href="{{ url_for('static', filename='safari-pinned-tab.svg') }}" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="theme-color" content="#ffffff">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            background-color: #f3f3f3;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .inventory-header {
+            font-size: 1.2rem;
+            color: #555;
+            font-weight: bold;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+
+        li object {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 10px auto;
+            cursor: pointer;
+        }
+
+        /* Styles for tiled images */
+        .image-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .image-grid object {
+            width: 200px;
+            height: auto;
+            object-fit: contain;
+            display: block;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background-color: #fff;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            padding-top: 50px;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .close {
+            color: #ddd;
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            font-size: 30px;
+            font-weight: bold;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #bbb;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        img.modal-content {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            margin: auto;
+            display: block;
+        }
+
+        /* Use -webkit-fill-available for portrait mode */
+        @media (orientation: portrait) {
+            img.modal-content {
+                width: -webkit-fill-available;
+                height: auto;
+            }
+        }
+
+        /* Use -webkit-fill-available for landscape mode */
+        @media (orientation: landscape) {
+            img.modal-content {
+                height: -webkit-fill-available;
+                width: auto;
+            }
+        }
+
+        .nav-container {
+            max-width: 800px;
+            margin: 0 auto 20px;
+        }
+
+        .nav-toggle {
+            display: none;
+            background-color: #28a745;
+            color: white;
+            font-size: 1.2rem;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            width: 100%;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .nav-links {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+            padding: 0px 30px;
+        }
+
+        .nav-links a {
+            padding: 0px 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-decoration: none;
+            color: #28a745;
+            background-color: #e9f5ec;
+            border-radius: 8px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: background-color 0.2s, transform 0.2s;
+            max-width: none;
+            min-height: 80px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-links a:hover {
+            background-color: #d4edda;
+            transform: scale(1.02);
+        }
+
+        /* Show toggle button and collapse menu on smaller screens */
+        @media (max-width: 768px) {
+            .nav-toggle {
+                display: block;
+            }
+
+            .nav-links {
+                display: none;
+                flex-direction: column;
+            }
+
+            .nav-links a {
+                display: block;
+                padding: 14px 20px;
+                font-size: 1.1rem;
+                font-weight: bold;
+                text-decoration: none;
+                color: #28a745;
+                background-color: #e9f5ec;
+                border-radius: 8px;
+                width: 100%;
+                max-width: 400px;
+                min-height: auto;
+                text-align: center;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                transition: background-color 0.2s, transform 0.2s;
+            }
+
+            .nav-links.show {
+                display: flex;
+            }
+        }
+
+        input[type="checkbox"] {
+            transform: scale(1.0);
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="nav-container">
+            <button class="nav-toggle" onclick="toggleMenu()">☰ Menu</button>
+            <div class="nav-links" id="navLinks">
+                <a href="{{ url_for('main.junkyard_page', yard_name='lkq') }}">Search LKQ</a>
+                <a href="{{ url_for('main.junkyard_page', yard_name='picknpull') }}">Search Pick-n-Pull</a>
+                <a href="{{ url_for('main.junkyard_page', yard_name='pullapart') }}">Search Pull-A-Part</a>
+                <a href="{{ url_for('main.junkyard_page', yard_name='upullandsave') }}">Search U Pull & Save</a>
+                <a href="https://jacksusedautoparts.com/vehicle-inventory/">Search Jack's Used Auto Parts</a>
+            </div>
+        </div>        
+        <h1>Car Inventory</h1>
+        <div style="margin-bottom: 20px;">
+            <label style="display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: #555;">
+                <input type="checkbox" id="showAllMercedes" style="accent-color: #28a745;">
+                Show All Mercedes
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: #555; margin-top: 10px;">
+                <input type="checkbox" id="showFarLocations" style="accent-color: #28a745;">
+                Show Results From Farther Locations
+            </label>
+        </div>        
+
+        <details open>
+            <summary><span class="inventory-header">LKQ Inventory</span></summary>
+            <ul>
+                {% for car in cars_lkq %}
+                <li
+                    data-interest="{{ car.interest_level }}"
+                    data-distance="near"
+                >
+                    <strong>Location:</strong> {{ car.location|title }}<br>
+                    <strong>Stock Number:</strong> {{ car.stock_num }}<br>
+                    <strong>Year:</strong> {{ car.year }}<br>
+                    <strong>Model:</strong> {{ car.model }}<br>
+                    <strong>Color:</strong> {{ car.color }}<br>
+                    <strong>Section:</strong> {{ car.section }}<br>
+                    <strong>Row:</strong> {{ car.row }}<br>
+                    <strong>Space:</strong> {{ car.space }}<br>
+                    <strong>Date:</strong> {{ car.date }}<br>
+                    <strong>VIN:</strong> {{ car.vin }}<br>
+                    <div class="image-grid" id="image-grid-{{ car.stock_num }}">
+                        <object data="{{ car.image }}" type="image/png" onclick="showImage('{{ car.image }}')"></object>
+                        {% for image in car.image_urls if image != car.image %}
+                        <object data="{{ image }}" type="image/png" onclick="showImage('{{ image }}')"></object>
+                        {% endfor %}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </details>
+
+        <details open>
+        <summary><span class="inventory-header">Pick-n-Pull Inventory</span></summary>
+            <ul>
+                {% for car in cars_picknpull %}
+                <li
+                    data-interest="{{ car.interest_level }}"
+                    data-distance="near"
+                >
+                    <strong>Location:</strong> {{ car.location }}<br>
+                    <strong>Year:</strong> {{ car.year }}<br>
+                    <strong>Model:</strong> {{ car.model }}<br>
+                    <strong>Trim:</strong> {{ car.trim }}<br>
+                    <strong>Color:</strong> {{ car.color }}<br>
+                    <strong>Engine:</strong> {{ car.engine }}<br>
+                    <strong>Transmission:</strong> {{ car.transmission }}<br>
+                    <strong>Row:</strong> {{ car.row }}<br>
+                    <strong>Date:</strong> {{ car.date }}<br>
+                    <strong>Stock Number:</strong> {{ car.stock_num }}<br>
+                    <strong>VIN:</strong> {{ car.vin }}<br>
+                    <object data="{{ car.image }}" type="image/png" onclick="showImage('{{ car.image }}')"></object>
+                </li>
+                {% endfor %}
+            </ul>
+        </details>
+
+        <details open>
+        <summary><span class="inventory-header">Pull-A-Part Inventory</span></summary>
+            <ul>
+                {% for car in cars_pullapart %}
+                <li
+                    data-interest="{{ car.interest_level }}"
+                    data-distance="{% if car.location_id == 35 %}near{% else %}far{% endif %}"
+                >
+                    <strong>Location:</strong> {{ car.location }}<br>
+                    <strong>Year:</strong> {{ car.year }}<br>
+                    <strong>Model:</strong> {{ car.model }}<br>
+                    <strong>Trim:</strong> {{ car.trim }}<br>
+                    <strong>Style:</strong> {{ car.style }}<br>
+                    <strong>Color:</strong> {{ car.color }}<br>
+                    <strong>Engine:</strong> {{ car.engine }}<br>
+                    <strong>Transmission:</strong> {{ car.transmission }}<br>
+                    <strong>Row:</strong> {{ car.row }}<br>
+                    <strong>Date:</strong> {{ car.date }}<br>
+                    <strong>Stock Number:</strong> {{ car.stock_num }}<br>
+                    <strong>VIN:</strong> {{ car.vin }}<br>
+                    <object data="{{ car.image }}" type="image/png" onclick="showImage('{{ car.image }}')"></object>
+                </li>
+                {% endfor %}
+            </ul>
+        </details>
+
+        <details open>
+            <summary><span class="inventory-header">U Pull & Save Inventory</span></summary>
+            <ul>
+                {% for car in cars_upullandsave %}
+                <li
+                    data-interest="{{ car.interest_level }}"
+                    data-distance="near"
+                >
+                    <strong>Location:</strong> {{ car.location }}<br>
+                    <strong>Year:</strong> {{ car.year }}<br>
+                    <strong>Model:</strong> {{ car.model }}<br>
+                    {% if car.series %}
+                    <strong>Series:</strong> {{ car.series }}<br>
+                    {% endif %}
+                    <strong>Color:</strong> {{ car.color }}<br>
+                    <strong>Row:</strong> {{ car.row }}<br>
+                    <strong>Date:</strong> {{ car.date }}<br>
+                    <strong>Stock Number:</strong> {{ car.stock_num }}<br>
+                    <strong>Notes:</strong> {{ car.notes }}<br>
+                    <strong>VIN:</strong> {{ car.vin }}<br>
+                    <div class="image-grid" id="image-grid-{{ car.stock_num }}">
+                        {% for image in car.image_urls if image != car.image %}
+                        <object referrerpolicy="no-referrer" data="{{ image }}" type="image/png" onclick="showImage('{{ image }}')"></object>
+                        {% endfor %}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </details>
+
+        <details open>
+            <summary><span class="inventory-header">Jack's Used Auto Parts Inventory</span></summary>
+            <a href="https://www.youtube.com/@jacksusedautoparts">Jack's Used Auto Parts YouTube</a>
+            <ul>
+                {% for car in cars_jacks %}
+                <li>
+                    <strong>Year:</strong> {{ car.year }}<br>
+                    <strong>Model:</strong> {{ car.model }}<br>
+                    <strong>Color:</strong> {{ car.color }}<br>
+                    <strong>Engine:</strong> {{ car.engine }}<br>
+                    <strong>Row:</strong> {{ car.row }}<br>
+                    <strong>Date:</strong> {{ car.date }}<br>
+                </li>
+                {% endfor %}
+            </ul>
+        </details>
+    </div>
+
+    <!-- Link to the Utah page -->
+     <a href="{{ url_for('utah.index') }}" style="display: block; text-align: center; margin-top: 20px; color: #007bff; text-decoration: none;">View Utah Site</a>
+
+    <!-- Modal for full-size image display -->
+    <div id="myModal" class="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="fullSizeImg">
+    </div>
+
+    <!-- JavaScript to control modal display -->
+    <script>
+        function toggleMenu() {
+            var navLinks = document.getElementById("navLinks");
+            navLinks.classList.toggle("show");
+        }
+        
+        function applyFilters() {
+            const showAllMercedes = document.getElementById('showAllMercedes').checked;
+            const showFarLocations = document.getElementById('showFarLocations').checked;
+
+            const allItems = document.querySelectorAll('ul > li');
+
+            allItems.forEach(item => {
+                const make = item.dataset.make || '';
+                const interest = parseInt(item.dataset.interest || '0');
+                const distance = item.dataset.distance || 'near';
+
+                let visible = true;
+
+                if (!showAllMercedes && make.toLowerCase() !== 'mercedes') {
+                    visible = interest > 0;
+                }
+
+                if (!showFarLocations && distance !== 'near') {
+                    visible = false;
+                }
+
+                item.style.display = visible ? 'block' : 'none';
+            });
+        }
+
+        document.getElementById('showAllMercedes').addEventListener('change', applyFilters);
+        document.getElementById('showFarLocations').addEventListener('change', applyFilters);
+
+        window.addEventListener('DOMContentLoaded', applyFilters);
+
+        function showImage(imageUrl) {
+            var modal = document.getElementById('myModal');
+            var img = document.getElementById('fullSizeImg');
+            img.src = imageUrl;
+            modal.style.display = "block";
+        }
+
+        function closeModal() {
+            var modal = document.getElementById('myModal');
+            modal.style.display = "none";
+        }
+        // Function to check if the image URL is valid
+        function is_valid_image(url) {
+            var imgObj = new Image();
+            imgObj.src = url;
+            return imgObj.complete && imgObj.naturalWidth !== 0;
+        }
+    </script>
+</body>
+
+</html>

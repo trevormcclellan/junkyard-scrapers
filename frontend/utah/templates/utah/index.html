@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Inventory</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+    <link rel="mask-icon" href="{{ url_for('static', filename='safari-pinned-tab.svg') }}" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="theme-color" content="#ffffff">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            background-color: #f3f3f3;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            color: #555;
+            margin-top: 30px;
+            margin-bottom: 10px;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+
+        li object {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 10px auto;
+            cursor: pointer;
+        }
+
+        /* Styles for tiled images */
+        .image-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .image-grid object {
+            width: 200px;
+            height: 200px;
+            display: block;
+            cursor: pointer;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            padding-top: 50px;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .close {
+            color: #ddd;
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            font-size: 30px;
+            font-weight: bold;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #bbb;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* Responsive styling for the modal image */
+        img.modal-content {
+            width: 100%;
+            height: auto;
+        }
+
+        /* Use -webkit-fill-available for portrait mode */
+        @media (orientation: portrait) {
+            img.modal-content {
+                width: -webkit-fill-available;
+                height: auto;
+            }
+        }
+
+        /* Use -webkit-fill-available for landscape mode */
+        @media (orientation: landscape) {
+            img.modal-content {
+                height: -webkit-fill-available;
+                width: auto;
+            }
+        }
+
+        .nav-links {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .nav-links a {
+            margin-right: 20px;
+            text-decoration: none;
+            font-weight: bold;
+            color: #28a745;
+            /* Bootstrap green color */
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: #218838;
+            /* Darker green for hover effect */
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="nav-links">
+            <a href="{{ url_for('utah.junkyard_page', yard_name='tearapart') }}">Search Tear A Part</a>
+            <a href="{{ url_for('utah.junkyard_page', yard_name='utpap') }}">Search UTPAP</a>
+            <a href="{{ url_for('utah.junkyard_page', yard_name='pullnsave') }}">Search Pull-n-Save</a>
+        </div>
+        <h1>Car Inventory</h1>
+
+        <h2>Tear A Part Inventory</h2>
+        <ul>
+            {% for car in cars_tearapart %}
+            <li>
+                <strong>Location:</strong> {{ car.location }}<br>
+                <strong>Year:</strong> {{ car.year }}<br>
+                <strong>Model:</strong> {{ car.model }}<br>
+                {% if car.series %}
+                <strong>Series:</strong> {{ car.series }}<br>
+                {% endif %}
+                <strong>Color:</strong> {{ car.color }}<br>
+                <strong>Row:</strong> {{ car.row }}<br>
+                <strong>Date:</strong> {{ car.date }}<br>
+                <strong>Stock Number:</strong> {{ car.stock_num }}<br>
+                <strong>Reference:</strong> {{ car.reference }}<br>
+                <strong>VIN:</strong> {{ car.vin }}<br>
+                <object data="{{ car.image }}" type="image/png" onclick="showImage('{{ car.image }}')"></object>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <h2>UTPAP Inventory</h2>
+        <ul>
+            {% for car in cars_utpap %}
+            <li>
+                <strong>Location:</strong> {{ car.location }}<br>
+                <strong>Stock Number:</strong> {{ car.stock_num }}<br>
+                <strong>Year:</strong> {{ car.year }}<br>
+                <strong>Model:</strong> {{ car.model }}<br>
+                <strong>Engine:</strong> {{ car.engine }}<br>
+                <!-- <strong>Color:</strong> {{ car.color }}<br> -->
+                <strong>Row:</strong> {{ car.row }}<br>
+                <strong>Date:</strong> {{ car.date }}<br>
+                <object data="{{ car.image }}" type="image/png" onclick="showImage('{{ car.image }}')"></object>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <h2>Pull-n-Save Inventory</h2>
+        <ul>
+            {% for car in cars_pullnsave %}
+            <li>
+                <strong>Location:</strong> {{ car.location }}<br>
+                <strong>Year:</strong> {{ car.year }}<br>
+                <strong>Model:</strong> {{ car.model }}<br>
+                {% if car.series %}
+                <strong>Series:</strong> {{ car.series }}<br>
+                {% endif %}
+                <strong>Color:</strong> {{ car.color }}<br>
+                <strong>Row:</strong> {{ car.row }}<br>
+                <strong>Date:</strong> {{ car.date }}<br>
+                <strong>Stock Number:</strong> {{ car.stock_num }}<br>
+                <strong>VIN:</strong> {{ car.vin }}<br>
+                <!-- Display multiple images -->
+                <div class="image-grid" id="image-grid-{{ car.stock_num }}">
+                    <!-- Images will be loaded here dynamically -->
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Modal for full-size image display -->
+    <div id="myModal" class="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="fullSizeImg">
+    </div>
+
+    <!-- JavaScript to control modal display -->
+    <script>
+        async function loadImages(stockNum, yard) {
+            const grid = document.getElementById(`image-grid-${stockNum}`);
+            try {
+                const response = await fetch(`/utah/api/images/pullnsave/${stockNum}/${yard}`);
+                const respJson = await response.json();
+                if (respJson.count) {
+                    for (const imgUrl of respJson.images || []) {
+                        const img = document.createElement('object');
+                        img.data = imgUrl;
+                        img.type = 'image/png';
+                        img.onclick = () => showImage(imgUrl);
+                        grid.appendChild(img);
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching image count:", error);
+            }
+        }
+
+        // Load images for each car dynamically
+        document.addEventListener("DOMContentLoaded", () => {
+            {% for car in cars_pullnsave %}
+            loadImages('{{ car.stock_num }}', '{{ car.yard }}');
+            {% endfor %}
+        });
+
+        function showImage(imageUrl) {
+            var modal = document.getElementById('myModal');
+            var img = document.getElementById('fullSizeImg');
+            img.src = imageUrl;
+            modal.style.display = "block";
+        }
+
+        function closeModal() {
+            var modal = document.getElementById('myModal');
+            modal.style.display = "none";
+        }
+        // Function to check if the image URL is valid
+        function is_valid_image(url) {
+            var imgObj = new Image();
+            imgObj.src = url;
+            return imgObj.complete && imgObj.naturalWidth !== 0;
+        }
+    </script>
+</body>
+
+</html>

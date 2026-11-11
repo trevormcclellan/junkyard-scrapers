@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "junkyard-inventory"
+version = "1.0.0"
+description = "Shared junkyard integrations, scheduled watches, and Flask search"
+requires-python = ">=3.14"
+dynamic = ["dependencies"]
+
+[project.scripts]
+junkyard-check = "junkyard.worker:main"
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+include = ["junkyard*", "frontend*"]
+
+[tool.setuptools.package-data]
+frontend = ["static/*", "main/templates/main/*.html", "utah/templates/utah/*.html"]

@@ -1,38 +1,29 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim
-
-# Set the working directory in the container
+FROM python:3.14.10-slim-bookworm AS base
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
+COPY requirements.txt requirements-build.txt pyproject.toml ./
+RUN pip install --no-cache-dir -r requirements-build.txt -r requirements.txt
+COPY junkyard ./junkyard
+COPY frontend ./frontend
+RUN pip install --no-cache-dir --no-deps --no-build-isolation . && pip check
 
-# Copy the requirements file into the container at /app
-COPY requirements.txt .
+FROM base AS web
+EXPOSE 5000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "from urllib.request import urlopen; urlopen('http://127.0.0.1:5000/healthz', timeout=3)"
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "180", "frontend.app:create_app()"]
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the rest of the application's code into the container at /app
-COPY . .
-
-# Copy the cron job file to the cron directory
-COPY scrapers_cron /etc/cron.d/scrapers_cron
-
-# Give execution rights on the cron job file
-RUN chmod 0644 /etc/cron.d/scrapers_cron
-
-# Create the log file to be able to run tail
-RUN touch /var/log/cron.log
-
-# Install cron
-RUN apt-get update && apt-get install -y cron
-
-# Copy the health check script
-COPY healthcheck.sh /healthcheck.sh
-
-# Give execution rights on the health check script
-RUN chmod +x /healthcheck.sh
-
-# Define the health check
-HEALTHCHECK --interval=60s --timeout=10s --start-period=5s --retries=3 CMD /healthcheck.sh
-
-# Run all scripts on container startup and start cron
-CMD ["sh", "-c", "python /app/jacks/main.py && python /app/lkq/main.py && python /app/picknpull/main.py && python /app/pullapart/main.py  && python /app/upullandsave/main.py && cron && tail -f /var/log/cron.log"]
+# Default remains the worker image for existing root Dockerfile builds.
+FROM base AS worker
+COPY jacks ./jacks
+COPY lkq ./lkq
+COPY picknpull ./picknpull
+COPY pullapart ./pullapart
+COPY upullandsave ./upullandsave
+COPY tearapart ./tearapart
+COPY utpap ./utpap
+COPY pullnsave ./pullnsave
+COPY healthcheck.sh ./healthcheck.sh
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30m --retries=3 \
+    CMD python -m junkyard.worker --healthcheck
+CMD ["python", "-m", "junkyard.worker", "--loop"]

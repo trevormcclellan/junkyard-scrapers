@@ -1,0 +1,52 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read the runtime pinned in Dockerfile
+        id: runtime
+        run: sed -n 's/^FROM python:\([0-9.]*\)-.*/version=\1/p' Dockerfile >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@v7.1.0
+        with:
+          python-version: ${{ steps.runtime.outputs.version }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Install locked dependencies and package
+        run: |
+          python -m pip install -r requirements-build.txt -r requirements.txt
+          python -m pip install --no-deps --no-build-isolation .
+          python -m pip check
+          python scripts/check_lock.py
+      - name: Parser, worker, and frontend tests (no external services)
+        run: python -m unittest discover -s tests -v
+      - name: Installed package and template smoke test
+        working-directory: ${{ runner.temp }}
+        run: python -c "from frontend.app import create_app; assert create_app().test_client().get('/junkyard/lkq').status_code == 200"
+      - name: Build both images from the same revision
+        run: |
+          docker build --pull --target web -t junkyard-web:ci .
+          docker build --target worker -t junkyard-worker:ci .
+      - name: Run regression tests inside the built runtime
+        run: docker run --rm -v "$PWD/tests:/tests:ro" junkyard-worker:ci python -m unittest discover -s /tests -v
+      - name: Worker image smoke test (no scrape or database writes)
+        run: docker run --rm junkyard-worker:ci python -m junkyard.worker --help
+      - name: Web image smoke test
+        run: |
+          docker run -d --name junkyard-web-ci -p 127.0.0.1:5000:5000 junkyard-web:ci
+          trap 'docker logs junkyard-web-ci; docker rm -f junkyard-web-ci' EXIT
+          for attempt in $(seq 1 20); do
+            if curl --fail http://127.0.0.1:5000/healthz; then exit 0; fi
+            sleep 1
+          done
+          exit 1

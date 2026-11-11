@@ -1,0 +1,22 @@
+{
+  "recordsTotal": 100,
+  "recordsFiltered": 1,
+  "data": [
+    {
+      "year": 2001,
+      "make": "Mercedes-Benz",
+      "model": "E-Class",
+      "vin": "TESTVIN",
+      "stock_number": "UP123",
+      "color": "Silver",
+      "yard_row": "4",
+      "date_set": "2026-10-20",
+      "notes": "Diesel",
+      "images": [
+        {
+          "full": "https://example.test/path/car.jpg"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+[
+  {
+    "vehicles": [
+      {
+        "locationName": "Columbus",
+        "year": 2001,
+        "make": "Mercedes-Benz",
+        "model": "E-Class",
+        "vin": "TESTVIN",
+        "barCodeNumber": "PNP123",
+        "row": "4",
+        "dateAdded": "2026-10-20",
+        "imageName": "https://example.test/car.jpg"
+      }
+    ]
+  }
+]

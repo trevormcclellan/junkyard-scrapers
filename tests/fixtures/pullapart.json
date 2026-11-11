@@ -1,0 +1,19 @@
+[
+  {
+    "exact": [
+      {
+        "locName": "Cincinnati",
+        "locID": 18,
+        "modelYear": 2001,
+        "makeName": "Mercedes-Benz",
+        "modelName": "E-Class",
+        "vin": "TESTVIN",
+        "vinID": 123,
+        "row": "4",
+        "dateYardOn": "2026-10-20",
+        "ticketID": 45,
+        "lineID": 1
+      }
+    ]
+  }
+]

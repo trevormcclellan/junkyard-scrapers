@@ -1,0 +1,18 @@
+{
+  "products": [
+    {
+      "yard_name": "SALT LAKE CITY",
+      "iyear": 2001,
+      "make": "Mercedes-Benz",
+      "model": "",
+      "hol_model": "E-Class",
+      "color": "Silver",
+      "vin": " TESTVIN ",
+      "stocknumber": "TA123",
+      "reference": "REF123",
+      "vehicle_row": "4",
+      "yard_date": "2026-10-20",
+      "image_url": "<img src='https://example.test/car.jpg'>"
+    }
+  ]
+}

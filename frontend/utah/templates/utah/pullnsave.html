@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Pull-n-Save Inventory</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+    <link rel="mask-icon" href="{{ url_for('static', filename='safari-pinned-tab.svg') }}" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="theme-color" content="#ffffff">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            background-color: #f3f3f3;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            color: #555;
+            margin-top: 30px;
+            margin-bottom: 10px;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+
+        li object {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 10px auto;
+            cursor: pointer;
+        }
+
+        /* Styles for tiled images */
+        .image-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .image-grid object {
+            width: 200px;
+            height: 200px;
+            display: block;
+            cursor: pointer;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            padding-top: 50px;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .close {
+            color: #ddd;
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            font-size: 30px;
+            font-weight: bold;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #bbb;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* Responsive styling for the modal image */
+        img.modal-content {
+            width: 100%;
+            height: auto;
+        }
+
+        /* Use -webkit-fill-available for portrait mode */
+        @media (orientation: portrait) {
+            img.modal-content {
+                width: -webkit-fill-available;
+                height: auto;
+            }
+        }
+
+        /* Use -webkit-fill-available for landscape mode */
+        @media (orientation: landscape) {
+            img.modal-content {
+                height: -webkit-fill-available;
+                width: auto;
+            }
+        }
+
+        /* Dropdown styles to match the rest of the page */
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            font-size: 1rem;
+            color: #555;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #218838;
+            background-color: #f1f1f1;
+        }
+
+        option {
+            padding: 10px;
+            font-size: 1rem;
+            background-color: #fff;
+            color: #333;
+        }
+
+        /* Add some hover effect for better user experience */
+        select:hover,
+        option:hover {
+            background-color: #e9ecef;
+        }
+
+        /* Style for the search button */
+        button#search-button {
+            background-color: #28a745;
+            /* Primary button color */
+            color: white;
+            padding: 12px 20px;
+            font-size: 1rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            width: 100%;
+            margin-bottom: 20px;
+            /* To space it out from other elements */
+        }
+
+        /* Hover and active states for the button */
+        button#search-button:hover {
+            background-color: #218838;
+            /* Darker shade on hover */
+        }
+
+        button#search-button:focus {
+            outline: none;
+            background-color: #218838;
+        }
+
+        /* Small devices - Button adapts to width */
+        @media (max-width: 600px) {
+            button#search-button {
+                width: 100%;
+            }
+        }
+
+        .nav-links {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .nav-links a {
+            margin-right: 20px;
+            text-decoration: none;
+            font-weight: bold;
+            color: #28a745;
+            /* Bootstrap green color */
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: #218838;
+            /* Darker green for hover effect */
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="nav-links">
+            <a href="{{ url_for('utah.index') }}">Home</a>
+            <a href="{{ url_for('utah.junkyard_page', yard_name='tearapart') }}">Search Tear A Part</a>
+            <a href="{{ url_for('utah.junkyard_page', yard_name='utpap') }}">Search UTPAP</a>
+        </div>
+        <h1>Search Pull-n-Save Inventory</h1>
+        <!-- Dropdown for make selection -->
+        <label for="location">Select Location:</label>
+        <select id="location">
+            <option value="1">Salt Lake City</option>
+            <option value="6">Springville</option>
+        </select>
+
+        <!-- Dropdown for make selection -->
+        <label for="make">Select Make:</label>
+        <select id="make">
+            <!-- Dynamically populated options -->
+            {% for make in makes %}
+            <option value="{{ make.value }}">{{ make.text }}</option>
+            {% endfor %}
+        </select>
+
+        <!-- Dropdown for model selection -->
+        <label for="model">Select Model:</label>
+        <select id="model">
+            <!-- Dynamically populated options will go here -->
+        </select>
+
+        <!-- Button to search -->
+        <button id="search-button">Search</button>
+
+        <!-- Search results -->
+        <div id="inventory-results">
+            <h2>Search Results</h2>
+            <ul id="results-list">
+                <!-- Results will be displayed here -->
+                {% for result in results %}
+                <li></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Modal for full-size image display -->
+    <div id="myModal" class="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="fullSizeImg">
+    </div>
+
+    <script>
+        function showImage(imageUrl) {
+            var modal = document.getElementById('myModal');
+            var img = document.getElementById('fullSizeImg');
+            img.src = imageUrl;
+            modal.style.display = "block";
+        }
+
+        function closeModal() {
+            var modal = document.getElementById('myModal');
+            modal.style.display = "none";
+        }
+        // Function to check if the image URL is valid
+        function is_valid_image(url) {
+            var imgObj = new Image();
+            imgObj.src = url;
+            return imgObj.complete && imgObj.naturalWidth !== 0;
+        }
+
+        // Handle dynamic model dropdown population after selecting make
+        document.getElementById('make').addEventListener('change', function () {
+            var make = this.value;
+            // Call API to get models based on selected make
+            fetch(`/utah/api/models?make=${encodeURIComponent(make)}&yard_name={{ yard_name }}`)
+                .then(async response => {
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Inventory request failed');
+                    }
+                    return data;
+                })
+                .then(data => {
+                    var modelSelect = document.getElementById('model');
+                    modelSelect.innerHTML = ''; // Clear current options
+                    data.models.forEach(function (model) {
+                        var option = document.createElement('option');
+                        option.value = model.value;
+                        option.text = model.text;
+                        modelSelect.appendChild(option);
+                    });
+                }).catch(error => {
+                    window.alert(error.message || 'Inventory is temporarily unavailable.');
+                });
+        });
+
+        // Handle the search button click
+        document.getElementById('search-button').addEventListener('click', function () {
+            var make = document.getElementById('make').value;
+            var model = document.getElementById('model').value;
+            var location = document.getElementById('location').value;
+
+            // Call API to get search results
+            fetch(`/utah/api/search?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&yard_name={{ yard_name }}&location=${location}`)
+                .then(async response => {
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Inventory request failed');
+                    }
+                    return data;
+                })
+                .then(data => {
+                    var resultsList = document.getElementById('results-list');
+                    resultsList.innerHTML = ''; // Clear current results
+                    data.results.forEach(async function (result) {
+                        var li = document.createElement('li');
+
+                        // Create the Year line
+                        var year = document.createElement('strong');
+                        year.textContent = 'Year:';
+                        var yearValue = document.createElement('span');
+                        yearValue.textContent = result.year;
+                        li.appendChild(year);
+                        li.appendChild(yearValue);
+                        li.appendChild(document.createElement('br'));
+
+                        // Create the Model line
+                        var model = document.createElement('strong');
+                        model.textContent = 'Model:';
+                        var modelValue = document.createElement('span');
+                        modelValue.textContent = result.model;
+                        li.appendChild(model);
+                        li.appendChild(modelValue);
+                        li.appendChild(document.createElement('br'));
+
+                        // Optionally add Series if it exists
+                        if (result.series) {
+                            var series = document.createElement('strong');
+                            series.textContent = 'Series:';
+                            var seriesValue = document.createElement('span');
+                            seriesValue.textContent = result.series;
+                            li.appendChild(series);
+                            li.appendChild(seriesValue);
+                            li.appendChild(document.createElement('br'));
+                        }
+
+                        // Create the Color line
+                        var color = document.createElement('strong');
+                        color.textContent = 'Color:';
+                        var colorValue = document.createElement('span');
+                        colorValue.textContent = result.color;
+                        li.appendChild(color);
+                        li.appendChild(colorValue);
+                        li.appendChild(document.createElement('br'));
+
+                        // Create the Row line
+                        var row = document.createElement('strong');
+                        row.textContent = 'Row:';
+                        var rowValue = document.createElement('span');
+                        rowValue.textContent = result.row;
+                        li.appendChild(row);
+                        li.appendChild(rowValue);
+                        li.appendChild(document.createElement('br'));
+
+                        // Create the Date line
+                        var date = document.createElement('strong');
+                        date.textContent = 'Date:';
+                        var dateValue = document.createElement('span');
+                        dateValue.textContent = result.date;
+                        li.appendChild(date);
+                        li.appendChild(dateValue);
+                        li.appendChild(document.createElement('br'));
+
+                        // Create the Stock Number line
+                        var stockNum = document.createElement('strong');
+                        stockNum.textContent = 'Stock Number:';
+                        var stockNumValue = document.createElement('span');
+                        stockNumValue.textContent = result.stock_num;
+                        li.appendChild(stockNum);
+                        li.appendChild(stockNumValue);
+                        li.appendChild(document.createElement('br'));
+
+                        // Create the VIN line
+                        var vin = document.createElement('strong');
+                        vin.textContent = 'VIN:';
+                        var vinValue = document.createElement('span');
+                        vinValue.textContent = result.vin;
+                        li.appendChild(vin);
+                        li.appendChild(vinValue);
+                        li.appendChild(document.createElement('br'));
+
+                        // Add the images section
+                        var imageGrid = document.createElement('div');
+                        imageGrid.classList.add('image-grid');
+                        try {
+                            const response = await fetch(`/utah/api/images/pullnsave/${result.stock_num}/${location}`);
+                            const respJson = await response.json();
+                            if (respJson.count) {
+                                for (const imgUrl of respJson.images || []) {
+                                    const img = document.createElement('object');
+                                    img.data = imgUrl;
+                                    img.type = 'image/png';
+                                    img.onclick = () => showImage(imgUrl);
+                                    imageGrid.appendChild(img);
+                                }
+                            }
+                        } catch (error) {
+                            console.error("Error fetching image count:", error);
+                        }
+                        li.appendChild(imageGrid);
+
+                        // Append the li to the results list
+                        resultsList.appendChild(li);
+                    });
+                }).catch(error => {
+                    window.alert(error.message || 'Inventory is temporarily unavailable.');
+                });
+        });
+    </script>
+</body>
+
+</html>
