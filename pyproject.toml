@@ -19,4 +19,4 @@ dependencies = {file = ["requirements.txt"]}
 include = ["junkyard*", "frontend*"]
 
 [tool.setuptools.package-data]
-frontend = ["static/*", "main/templates/main/*.html", "utah/templates/utah/*.html"]
+frontend = ["static/*", "templates/*.html", "main/templates/main/*.html", "utah/templates/utah/*.html"]

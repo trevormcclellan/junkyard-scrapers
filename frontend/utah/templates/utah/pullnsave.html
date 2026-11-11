@@ -225,6 +225,7 @@
             text-decoration: underline;
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='search-feedback.css') }}">
 </head>
 
 <body>
@@ -260,6 +261,8 @@
         <!-- Button to search -->
         <button id="search-button">Search</button>
 
+        {% include "search_feedback.html" %}
+
         <!-- Search results -->
         <div id="inventory-results">
             <h2>Search Results</h2>
@@ -278,6 +281,7 @@
         <img class="modal-content" id="fullSizeImg">
     </div>
 
+    <script src="{{ url_for('static', filename='search-feedback.js') }}"></script>
     <script>
         function showImage(imageUrl) {
             var modal = document.getElementById('myModal');
@@ -301,15 +305,7 @@
         document.getElementById('make').addEventListener('change', function () {
             var make = this.value;
             // Call API to get models based on selected make
-            fetch(`/utah/api/models?make=${encodeURIComponent(make)}&yard_name={{ yard_name }}`)
-                .then(async response => {
-                    const data = await response.json();
-                    if (!response.ok) {
-                        throw new Error(data.error || 'Inventory request failed');
-                    }
-                    return data;
-                })
-                .then(data => {
+            SearchUI.run(`/utah/api/models?make=${encodeURIComponent(make)}&yard_name={{ yard_name }}`, "models", data => {
                     var modelSelect = document.getElementById('model');
                     modelSelect.innerHTML = ''; // Clear current options
                     data.models.forEach(function (model) {
@@ -318,8 +314,6 @@
                         option.text = model.text;
                         modelSelect.appendChild(option);
                     });
-                }).catch(error => {
-                    window.alert(error.message || 'Inventory is temporarily unavailable.');
                 });
         });
 
@@ -330,18 +324,10 @@
             var location = document.getElementById('location').value;
 
             // Call API to get search results
-            fetch(`/utah/api/search?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&yard_name={{ yard_name }}&location=${location}`)
-                .then(async response => {
-                    const data = await response.json();
-                    if (!response.ok) {
-                        throw new Error(data.error || 'Inventory request failed');
-                    }
-                    return data;
-                })
-                .then(data => {
+            SearchUI.run(`/utah/api/search?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&yard_name={{ yard_name }}&location=${location}`, "search", data => {
                     var resultsList = document.getElementById('results-list');
                     resultsList.innerHTML = ''; // Clear current results
-                    data.results.forEach(async function (result) {
+                    data.results.forEach(function (result) {
                         var li = document.createElement('li');
 
                         // Create the Year line
@@ -421,10 +407,15 @@
                         // Add the images section
                         var imageGrid = document.createElement('div');
                         imageGrid.classList.add('image-grid');
-                        try {
-                            const response = await fetch(`/utah/api/images/pullnsave/${result.stock_num}/${location}`);
-                            const respJson = await response.json();
-                            if (respJson.count) {
+                        var photoStatus = document.createElement('p');
+                        photoStatus.className = 'photo-status';
+                        photoStatus.setAttribute('role', 'status');
+                        photoStatus.textContent = 'Loading photos…';
+                        imageGrid.appendChild(photoStatus);
+                        imageGrid.setAttribute('aria-busy', 'true');
+                        SearchUI.json(`/utah/api/images/pullnsave/${encodeURIComponent(result.stock_num)}/${location}`)
+                            .then(respJson => {
+                                if (!Array.isArray(respJson.images)) throw new Error('Invalid photo response');
                                 for (const imgUrl of respJson.images || []) {
                                     const img = document.createElement('object');
                                     img.data = imgUrl;
@@ -432,17 +423,16 @@
                                     img.onclick = () => showImage(imgUrl);
                                     imageGrid.appendChild(img);
                                 }
-                            }
-                        } catch (error) {
-                            console.error("Error fetching image count:", error);
-                        }
+                                photoStatus.textContent = respJson.images.length ? '' : 'No photos available.';
+                            }).catch(() => {
+                                photoStatus.classList.add('photo-error');
+                                photoStatus.textContent = 'Photos could not be loaded. Search again to retry.';
+                            }).finally(() => imageGrid.setAttribute('aria-busy', 'false'));
                         li.appendChild(imageGrid);
 
                         // Append the li to the results list
                         resultsList.appendChild(li);
                     });
-                }).catch(error => {
-                    window.alert(error.message || 'Inventory is temporarily unavailable.');
                 });
         });
     </script>

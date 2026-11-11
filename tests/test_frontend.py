@@ -23,6 +23,20 @@ class FrontendTests(unittest.TestCase):
     def test_health_without_credentials(self):
         self.assertEqual(self.client.get('/healthz').json, {'status': 'ok'})
 
+    def test_initial_search_page_failure_has_readable_error_and_retry(self):
+        for url, provider, method in (
+            ('/junkyard/upullandsave', main.upullandsave, 'get_makes'),
+            ('/utah/junkyard/utpap', utah.utpap, 'get_modelmap_from_utpap'),
+        ):
+            with self.subTest(url=url), patch.object(provider, method, side_effect=InventoryError('private upstream detail')):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 502)
+                self.assertEqual(response.mimetype, 'text/html')
+                html = BeautifulSoup(response.data, 'html.parser')
+                self.assertIn("couldn't load", html.select_one('[role="alert"]').get_text())
+                self.assertEqual(html.find('a', string='Try again')['href'], url)
+                self.assertNotIn('private upstream detail', response.get_data(as_text=True))
+
     def test_worker_and_frontend_share_same_integration(self):
         self.assertIs(main.lkq, worker.lkq)
         with patch.object(lkq, 'search_inventory', return_value=[{'stock_num': '123'}]) as search:

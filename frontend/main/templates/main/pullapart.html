@@ -295,6 +295,7 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='search-feedback.css') }}">
 </head>
 
 <body>
@@ -320,7 +321,7 @@
         <!-- Dropdown for make selection -->
         <label for="make">Select Make:</label>
         <select id="make">
-            <option>Select Make</option>
+            <option value="">Select Make</option>
             <!-- Dynamically populated options -->
             {% for make in makes %}
             <option value="{{ make.makeID }}">{{ make.makeName }}</option>
@@ -335,6 +336,8 @@
 
         <!-- Button to search -->
         <button id="search-button">Search</button>
+
+        {% include "search_feedback.html" %}
 
         <!-- Search results -->
         <div id="inventory-results">
@@ -354,6 +357,7 @@
         <img class="modal-content" id="fullSizeImg">
     </div>
 
+    <script src="{{ url_for('static', filename='search-feedback.js') }}"></script>
     <script>
         function toggleMenu() {
             var navLinks = document.getElementById("navLinks");
@@ -377,15 +381,7 @@
             var make = this.value;
             // Call API to get models based on selected make
             var location = document.getElementById('location').value;
-            fetch(`/api/models?make=${encodeURIComponent(make)}&yard_name={{ yard_name }}&location=${location}`)
-                .then(async response => {
-                    const data = await response.json();
-                    if (!response.ok) {
-                        throw new Error(data.error || 'Inventory request failed');
-                    }
-                    return data;
-                })
-                .then(data => {
+            SearchUI.run(`/api/models?make=${encodeURIComponent(make)}&yard_name={{ yard_name }}&location=${location}`, "models", data => {
                     var modelSelect = document.getElementById('model');
                     modelSelect.innerHTML = ''; // Clear current options
                     var option = document.createElement('option');
@@ -398,9 +394,11 @@
                         option.text = model.modelName;
                         modelSelect.appendChild(option);
                     });
-                }).catch(error => {
-                    window.alert(error.message || 'Inventory is temporarily unavailable.');
                 });
+        });
+
+        document.getElementById('location').addEventListener('change', function () {
+            document.getElementById('make').dispatchEvent(new Event('change'));
         });
 
         // Handle the search button click
@@ -410,18 +408,10 @@
 
             // Call API to get search results
             var location = document.getElementById('location').value;
-            fetch(`/api/search?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&yard_name={{ yard_name }}&location=${location}`)
-                .then(async response => {
-                    const data = await response.json();
-                    if (!response.ok) {
-                        throw new Error(data.error || 'Inventory request failed');
-                    }
-                    return data;
-                })
-                .then(data => {
+            SearchUI.run(`/api/search?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&yard_name={{ yard_name }}&location=${location}`, "search", data => {
                     var resultsList = document.getElementById('results-list');
                     resultsList.innerHTML = ''; // Clear current results
-                    data.results.forEach(async function (result) {
+                    data.results.forEach(function (result) {
                         var li = document.createElement('li');
 
                         // Create the Location line
@@ -553,8 +543,6 @@
                         // Append the li to the results list
                         resultsList.appendChild(li);
                     });
-                }).catch(error => {
-                    window.alert(error.message || 'Inventory is temporarily unavailable.');
                 });
         });
     </script>

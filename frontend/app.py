@@ -1,5 +1,5 @@
 """Flask application factory; import is safe without database credentials."""
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request
 from werkzeug.exceptions import HTTPException
 
 from junkyard.common import InventoryError
@@ -22,6 +22,8 @@ def create_app(config=None):
     @app.errorhandler(InventoryError)
     def inventory_error(error):
         app.logger.warning('Upstream inventory unavailable: %s', error)
+        if '/api/' not in request.path:
+            return render_template('inventory_error.html'), 502
         return jsonify(error='This yard is temporarily unavailable. Please try again later.'), 502
 
     @app.errorhandler(HTTPException)

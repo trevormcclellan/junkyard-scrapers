@@ -295,6 +295,7 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='search-feedback.css') }}">
 </head>
 
 <body>
@@ -329,6 +330,8 @@
         <!-- Button to search -->
         <button id="search-button">Search</button>
 
+        {% include "search_feedback.html" %}
+
         <!-- Search results -->
         <div id="inventory-results">
             <h2>Search Results</h2>
@@ -347,6 +350,7 @@
         <img class="modal-content" id="fullSizeImg">
     </div>
 
+    <script src="{{ url_for('static', filename='search-feedback.js') }}"></script>
     <script>
         function toggleMenu() {
             var navLinks = document.getElementById("navLinks");
@@ -369,15 +373,7 @@
         document.getElementById('make').addEventListener('change', function () {
             var make = this.value;
             // Call API to get models based on selected make
-            fetch(`/api/models?make=${encodeURIComponent(make)}&yard_name={{ yard_name }}`)
-                .then(async response => {
-                    const data = await response.json();
-                    if (!response.ok) {
-                        throw new Error(data.error || 'Inventory request failed');
-                    }
-                    return data;
-                })
-                .then(data => {
+            SearchUI.run(`/api/models?make=${encodeURIComponent(make)}&yard_name={{ yard_name }}`, "models", data => {
                     var modelSelect = document.getElementById('model');
                     modelSelect.innerHTML = ''; // Clear current options
                     var option = document.createElement('option');
@@ -390,8 +386,6 @@
                         option.text = model.name;
                         modelSelect.appendChild(option);
                     });
-                }).catch(error => {
-                    window.alert(error.message || 'Inventory is temporarily unavailable.');
                 });
         });
 
@@ -401,18 +395,10 @@
             var model = document.getElementById('model').value;
 
             // Call API to get search results
-            fetch(`/api/search?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&yard_name={{ yard_name }}`)
-                .then(async response => {
-                    const data = await response.json();
-                    if (!response.ok) {
-                        throw new Error(data.error || 'Inventory request failed');
-                    }
-                    return data;
-                })
-                .then(data => {
+            SearchUI.run(`/api/search?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&yard_name={{ yard_name }}`, "search", data => {
                     var resultsList = document.getElementById('results-list');
                     resultsList.innerHTML = ''; // Clear current results
-                    data.results.forEach(async function (result) {
+                    data.results.forEach(function (result) {
                         var li = document.createElement('li');
 
                         // Create the Location line
@@ -535,8 +521,6 @@
                         // Append the li to the results list
                         resultsList.appendChild(li);
                     });
-                }).catch(error => {
-                    window.alert(error.message || 'Inventory is temporarily unavailable.');
                 });
         });
     </script>

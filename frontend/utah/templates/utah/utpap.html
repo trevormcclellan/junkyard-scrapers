@@ -225,6 +225,7 @@
             text-decoration: underline;
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='search-feedback.css') }}">
 </head>
 
 <body>
@@ -257,6 +258,8 @@
         <!-- Button to search -->
         <button id="search-button">Search</button>
 
+        {% include "search_feedback.html" %}
+
         <!-- Search results -->
         <div id="inventory-results">
             <h2>Search Results</h2>
@@ -275,6 +278,7 @@
         <img class="modal-content" id="fullSizeImg">
     </div>
 
+    <script src="{{ url_for('static', filename='search-feedback.js') }}"></script>
     <script>
         function showImage(imageUrl) {
             var modal = document.getElementById('myModal');
@@ -321,15 +325,7 @@
             var model = document.getElementById('model').value;
 
             // Call API to get search results
-            fetch(`/utah/api/search?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&yard_name={{ yard_name }}`)
-                .then(async response => {
-                    const data = await response.json();
-                    if (!response.ok) {
-                        throw new Error(data.error || 'Inventory request failed');
-                    }
-                    return data;
-                })
-                .then(data => {
+            SearchUI.run(`/utah/api/search?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&yard_name={{ yard_name }}`, "search", data => {
                     var resultsList = document.getElementById('results-list');
                     resultsList.innerHTML = ''; // Clear current results
                     data.results.forEach(function (result) {
@@ -402,8 +398,6 @@
                         // Append the li to the results list
                         resultsList.appendChild(li);
                     });
-                }).catch(error => {
-                    window.alert(error.message || 'Inventory is temporarily unavailable.');
                 });
         });
     </script>

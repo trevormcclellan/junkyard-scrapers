@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory temporarily unavailable</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='search-feedback.css') }}">
+    <style>body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; }</style>
+</head>
+<body>
+    <h1>Inventory temporarily unavailable</h1>
+    <p class="search-feedback search-error" role="alert">We couldn't load this yard's inventory information. Please try again in a moment.</p>
+    <p><a href="{{ request.path }}">Try again</a></p>
+    <p><a href="{{ url_for('utah.index') if request.path.startswith('/utah/') else url_for('main.index') }}">Back to home</a></p>
+</body>
+</html>
