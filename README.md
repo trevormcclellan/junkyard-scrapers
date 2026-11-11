@@ -78,13 +78,28 @@ docker build --target web -t junkyard-web:review .
 docker build --target worker -t junkyard-worker:review .
 ```
 
-The worker runs the existing five main-region yards on startup and then on an
-hourly cadence. `SCRAPER_YARDS` can include any of the eight integrations;
-`SCRAPER_INTERVAL_SECONDS` defaults to 3600 and `SCRAPER_TIMEOUT_SECONDS` caps each
-individual job at 1800 seconds. A Python scheduler replaces cron so each job
-inherits runtime container environment variables. Failures do not short-circuit
-later jobs. Health checks inspect both status and freshness. Web `/healthz` is a
-process health check; it does not probe external yards or MongoDB.
+The worker runs the existing five main-region yards immediately on startup, then
+at the top of each hour in the container's local timezone. For example, starting
+at 10:23 runs a cycle immediately, then at 11:00, 12:00, and so on. Yards run
+sequentially within each cycle. If a cycle runs past an hourly boundary, the next
+cycle waits for the next future hour; missed runs are not queued or overlapped.
+Keep the `/etc/localtime` mount to use the server's timezone.
+
+`SCRAPER_YARDS` can include any of the eight integrations.
+`SCRAPER_INTERVAL_SECONDS=3600` (the default) selects the hourly schedule above.
+A different value retains a custom interval measured from each cycle's start,
+with a minimum of 60 seconds. `SCRAPER_TIMEOUT_SECONDS` caps each individual job
+at 1800 seconds. A Python scheduler replaces cron so each job inherits runtime
+container environment variables. Failures do not short-circuit later jobs.
+Health checks inspect both status and freshness. Web `/healthz` is a process
+health check; it does not probe external yards or MongoDB.
+
+Worker logs include each cycle's yards, each search's yard/location and car
+counts, successful database updates, failures, elapsed time, and the next run's
+scheduled time. "Found" counts vehicles returned by the configured search
+(usually Mercedes), not the yard's entire inventory. "Retaining" counts vehicles
+after the existing watch rules; a separate sync-completed message confirms the
+database update succeeded. Follow these logs with `docker compose logs -f scrapers`.
 
 ## Dependency maintenance
 

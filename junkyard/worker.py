@@ -116,13 +116,21 @@ def sync_snapshot(collection, scope, cars, notify, yard):
 def run_checks(yard, collection, notify):
     success = True
     for scope, fetch in searches(yard):
+        label = ', '.join(f'{key}={value}' for key, value in scope.items()) or 'default search'
+        started = time.monotonic()
+        LOG.info('%s inventory search started (%s)', yard, label)
         try:
             fetched = list(fetch())
             validate_snapshot(scope, fetched)
             cars = watch_results(yard, fetched)
+            LOG.info('%s inventory search finished (%s): found %d cars; retaining %d cars',
+                     yard, label, len(fetched), len(cars))
             sync_snapshot(collection, scope, cars, notify, yard)
+            LOG.info('%s inventory sync completed (%s): %d cars in %.1fs',
+                     yard, label, len(cars), time.monotonic() - started)
         except Exception:
-            LOG.exception('%s inventory check failed for %s', yard, scope)
+            LOG.exception('%s inventory check failed (%s) after %.1fs',
+                          yard, label, time.monotonic() - started)
             success = False
     return success
 
@@ -184,9 +192,14 @@ def healthcheck():
 
 
 def run_cycle():
-    success = True
+    yards = configured_yards()
+    succeeded = 0
+    started = time.monotonic()
+    LOG.info('Inventory cycle started: %s', ', '.join(yards))
     # Subprocesses isolate legacy per-yard .env settings and cap stalled jobs.
-    for yard in configured_yards():
+    for yard in yards:
+        yard_started = time.monotonic()
+        LOG.info('%s worker started', yard)
         try:
             result = subprocess.run([sys.executable, '-m', 'junkyard.worker', yard],
                                     timeout=int(os.getenv('SCRAPER_TIMEOUT_SECONDS', '1800')), check=False)
@@ -196,15 +209,34 @@ def run_cycle():
             ok = False
         if not ok:
             write_health(yard, False)
-        success = ok and success
-    return success
+        succeeded += int(ok)
+        log = LOG.info if ok else LOG.error
+        log('%s worker %s in %.1fs', yard, 'succeeded' if ok else 'failed', time.monotonic() - yard_started)
+    LOG.info('Inventory cycle finished: %d/%d yards succeeded in %.1fs',
+             succeeded, len(yards), time.monotonic() - started)
+    return succeeded == len(yards)
+
+
+def next_hour(now):
+    """Next local top of the hour, including when the current hour is repeated by DST."""
+    local = time.localtime(now)
+    return now - local.tm_min * 60 - local.tm_sec - (now % 1) + 3600
+
+
+def wait_until(target):
+    # Recheck wall time so a clock correction doesn't leave a full-hour sleep stale.
+    while True:
+        remaining = target - time.time()
+        if remaining <= 0:
+            return
+        time.sleep(min(60, remaining))
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('yard', nargs='?', choices=YARDS)
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument('--loop', action='store_true', help='Run configured yards hourly, including on startup')
+    mode.add_argument('--loop', action='store_true', help='Run on startup and then on the hour (unless a custom interval is set)')
     mode.add_argument('--healthcheck', action='store_true')
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -218,7 +250,15 @@ def main(argv=None):
         if not args.loop:
             return 0 if success else 1
         interval = max(60, int(os.getenv('SCRAPER_INTERVAL_SECONDS', '3600')))
-        time.sleep(max(1, interval - (time.monotonic() - started)))
+        now = time.time()
+        if interval == 3600:
+            target = next_hour(now)
+        else:
+            # Preserve custom intervals measured from the start of each cycle.
+            target = now + max(1, interval - (time.monotonic() - started))
+        LOG.info('Next inventory cycle scheduled for %s',
+                 time.strftime('%Y-%m-%d %H:%M:%S %Z', time.localtime(target)))
+        wait_until(target)
 
 
 if __name__ == '__main__':

@@ -181,6 +181,44 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(car['yard'], 1)
         self.assertEqual(car['location'], 'Salt Lake City')
 
+    def test_jacks_retains_blank_models_and_collapses_identical_rows(self):
+        cars = jacks.parse_inventory(fixture('jacks-missing-models.html'))
+        self.assertEqual(len(cars), 4)
+        missing = [car for car in cars if car['model'] == 'UNKNOWN']
+        self.assertEqual({car['make'] for car in missing}, {'BMW', 'MERCEDES-BENZ'})
+        mercedes = next(car for car in missing if car['make'] == 'MERCEDES-BENZ')
+        self.assertEqual(mercedes['stock_num'], '2011MERCEDES-BENZBLACK3.5L1210/14/26')
+
+    def test_jacks_make_filter_keeps_vehicles_without_models(self):
+        with patch.object(jacks, 'request', return_value=response(fixture('jacks-missing-models.html'))):
+            cars = jacks.search_inventory('mercedes')
+        self.assertEqual(len(cars), 2)
+        self.assertEqual({car['make'] for car in cars}, {'MERCEDES-BENZ'})
+        self.assertEqual({car['model'] for car in cars}, {'R-CLASS', 'UNKNOWN'})
+
+    def test_jacks_malformed_rows_still_fail(self):
+        for fields in (
+            ['2001', 'BMW', '', 'GRAY', '2.5L', '12'],
+            ['2001', 'BMW', '', 'GRAY', '2.5L', '12', '10/14/26', 'extra'],
+            ['2001', '', '', 'GRAY', '2.5L', '12', '10/14/26'],
+            ['invalid year', 'BMW', '', 'GRAY', '2.5L', '12', '10/14/26'],
+        ):
+            html = '<table id="vehicles"><tbody><tr>' + ''.join(f'<td>{field}</td>' for field in fields) + '</tr></tbody></table>'
+            with self.subTest(fields=fields), self.assertRaises(InventoryError):
+                jacks.parse_inventory(html)
+
+    def test_jacks_conflicting_rows_with_same_identity_still_fail(self):
+        # Concatenated legacy identities can collide even when the rows differ.
+        rows = [
+            ['2001', 'BMW', '325', 'AB', 'C', '12', '10/14/26'],
+            ['2001', 'BMW', '325', 'A', 'BC', '12', '10/14/26'],
+        ]
+        html = '<table id="vehicles"><tbody>' + ''.join(
+            '<tr>' + ''.join(f'<td>{field}</td>' for field in row) + '</tr>' for row in rows
+        ) + '</tbody></table>'
+        with self.assertRaises(InventoryError):
+            jacks.parse_inventory(html)
+
     def test_missing_tables_are_errors_not_empty_results(self):
         for fn, args in ((jacks.parse_inventory, ()), (utpap.parse_inventory, ('Orem',)), (pullnsave.parse_inventory, ('Mercedes-Benz', 1))):
             with self.subTest(provider=fn.__module__), self.assertRaises(InventoryError):

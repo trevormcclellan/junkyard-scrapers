@@ -1,7 +1,9 @@
 import copy
+from datetime import datetime
 import os
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 import unittest
 from unittest.mock import Mock, patch
@@ -45,6 +47,30 @@ def car(stock='123', location='Dayton', **fields):
 
 
 class WorkerTests(unittest.TestCase):
+    def test_search_logs_counts_before_and_after_watch_rules(self):
+        fetched = [car('keep', 'Orem'), car('skip', 'Orem', year=2010)]
+        with patch.object(worker, 'searches', return_value=[({'location': 'Orem'}, lambda: fetched)]), self.assertLogs(worker.LOG, level='INFO') as logs:
+            self.assertTrue(worker.run_checks('utpap', Collection(), Mock()))
+        messages = '\n'.join(logs.output)
+        self.assertIn('utpap inventory search started (location=Orem)', messages)
+        self.assertIn('found 2 cars; retaining 1 cars', messages)
+        self.assertIn('utpap inventory sync completed (location=Orem): 1 cars', messages)
+
+    def test_empty_search_is_logged_as_success_with_zero_cars(self):
+        with patch.object(worker, 'searches', return_value=[({}, lambda: [])]), self.assertLogs(worker.LOG, level='INFO') as logs:
+            self.assertTrue(worker.run_checks('jacks', Collection(), Mock()))
+        messages = '\n'.join(logs.output)
+        self.assertIn('jacks inventory search finished (default search): found 0 cars; retaining 0 cars', messages)
+        self.assertIn('jacks inventory sync completed', messages)
+
+    def test_sync_failure_is_not_logged_as_success(self):
+        with patch.object(worker, 'searches', return_value=[({}, lambda: [car()])]), self.assertLogs(worker.LOG, level='INFO') as logs:
+            self.assertFalse(worker.run_checks('lkq', Collection(), Mock(side_effect=InventoryError('notification failed'))))
+        messages = '\n'.join(logs.output)
+        self.assertIn('found 1 cars', messages)
+        self.assertIn('inventory check failed', messages)
+        self.assertNotIn('inventory sync completed', messages)
+
     def test_watch_rules_preserve_main_and_utah_behavior(self):
         cars = [car(), car('456', year=2010, model='C-CLASS')]
         self.assertEqual([c['interest_level'] for c in worker.watch_results('picknpull', cars)], [1, 0])
@@ -120,10 +146,76 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(collection.docs[0]['image'], 'https://example.test/car.jpg')
 
     def test_scheduler_runs_later_yards_after_failure(self):
-        with patch.object(worker, 'configured_yards', return_value=['jacks', 'lkq']), patch.object(worker.subprocess, 'run', side_effect=[subprocess.TimeoutExpired('test', 1), Mock(returncode=0)]) as run, patch.object(worker, 'write_health') as health, self.assertLogs(worker.LOG, level='ERROR'):
+        with patch.object(worker, 'configured_yards', return_value=['jacks', 'lkq']), patch.object(worker.subprocess, 'run', side_effect=[subprocess.TimeoutExpired('test', 1), Mock(returncode=0)]) as run, patch.object(worker, 'write_health') as health, self.assertLogs(worker.LOG, level='INFO') as logs:
             self.assertFalse(worker.run_cycle())
         self.assertEqual(run.call_count, 2)
         health.assert_called_once_with('jacks', False)
+        messages = '\n'.join(logs.output)
+        self.assertIn('Inventory cycle started: jacks, lkq', messages)
+        self.assertIn('jacks worker timed out', messages)
+        self.assertIn('lkq worker succeeded', messages)
+        self.assertIn('Inventory cycle finished: 1/2 yards succeeded', messages)
+
+    def test_loop_runs_at_startup_then_on_the_hour_without_overlap(self):
+        class StopLoop(Exception):
+            pass
+
+        for start, duration, interval, expected in (
+            ('2026-11-10T10:23:15.500+00:00', 120, 3600, '2026-11-10T11:00:00+00:00'),
+            ('2026-11-10T10:00:00+00:00', 120, 3600, '2026-11-10T11:00:00+00:00'),
+            ('2026-11-10T10:59:00+00:00', 180, 3600, '2026-11-10T12:00:00+00:00'),
+            ('2026-11-10T10:23:00+00:00', 120, 600, '2026-11-10T10:33:00+00:00'),
+            ('2026-11-10T10:23:00+00:00', 700, 600, '2026-11-10T10:34:41+00:00'),
+        ):
+            initial = datetime.fromisoformat(start).timestamp()
+            clock, runs = [initial], []
+
+            def cycle():
+                runs.append(clock[0])
+                if len(runs) == 2:
+                    raise StopLoop
+                clock[0] += duration
+                return True
+
+            def sleep(seconds):
+                self.assertGreater(seconds, 0)
+                self.assertLessEqual(seconds, 60)
+                clock[0] += seconds
+
+            with self.subTest(start=start, duration=duration, interval=interval), \
+                    patch.dict(os.environ, {'SCRAPER_INTERVAL_SECONDS': str(interval)}), \
+                    patch.object(worker.time, 'time', side_effect=lambda: clock[0]), \
+                    patch.object(worker.time, 'monotonic', side_effect=lambda: clock[0]), \
+                    patch.object(worker.time, 'localtime', side_effect=time.gmtime), \
+                    patch.object(worker.time, 'sleep', side_effect=sleep), \
+                    patch.object(worker, 'run_cycle', side_effect=cycle), \
+                    self.assertLogs(worker.LOG, level='INFO') as logs, self.assertRaises(StopLoop):
+                worker.main(['--loop'])
+            self.assertEqual(runs, [initial, datetime.fromisoformat(expected).timestamp()])
+            self.assertIn('Next inventory cycle scheduled for', '\n'.join(logs.output))
+
+    def test_next_hour_uses_local_timezone_and_handles_dst(self):
+        for zone, current, expected in (
+            ('EST5EDT,M3.2.0,M11.1.0', '2026-03-08T01:45:00-05:00', '2026-03-08T03:00:00-04:00'),
+            ('EST5EDT,M3.2.0,M11.1.0', '2026-11-01T01:45:00-04:00', '2026-11-01T01:00:00-05:00'),
+            ('EST5EDT,M3.2.0,M11.1.0', '2026-11-01T01:45:00-05:00', '2026-11-01T02:00:00-05:00'),
+            ('IST-5:30', '2026-11-10T10:23:15.500+05:30', '2026-11-10T11:00:00+05:30'),
+        ):
+            with self.subTest(zone=zone, current=current):
+                try:
+                    with patch.dict(os.environ, {'TZ': zone}):
+                        time.tzset()
+                        target = worker.next_hour(datetime.fromisoformat(current).timestamp())
+                        self.assertEqual(target, datetime.fromisoformat(expected).timestamp())
+                finally:
+                    time.tzset()
+
+    def test_one_shot_does_not_wait_or_repeat(self):
+        for success in (True, False):
+            with self.subTest(success=success), patch.object(worker, 'run_cycle', return_value=success) as cycle, patch.object(worker, 'wait_until') as wait:
+                self.assertEqual(worker.main([]), 0 if success else 1)
+            cycle.assert_called_once()
+            wait.assert_not_called()
 
     def test_configured_yards_validation(self):
         with patch.dict(os.environ, {'SCRAPER_YARDS': 'lkq,utpap,lkq'}):
