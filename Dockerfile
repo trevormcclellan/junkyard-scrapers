@@ -1,4 +1,4 @@
-FROM python:3.14.10-slim-bookworm AS base
+FROM python:3.15.0-slim-bookworm AS base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY requirements.txt requirements-build.txt pyproject.toml ./
